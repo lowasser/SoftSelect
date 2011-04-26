@@ -73,7 +73,7 @@ public class SoftHeapTests extends TestCase {
     }
     if (heap.isEmpty())
       return true;
-    int alpha = heap.extractMin().get();
+    int alpha = heap.extractMin();
     int greater = 0;
     for (Integer i : heap) {
       if (i > alpha) {
