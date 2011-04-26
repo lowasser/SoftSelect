@@ -455,6 +455,13 @@ public class SoftHeap<E> {
     size++;
   }
 
+  public Optional<E> peekKey() {
+    if (!heap.first.isPresent()) {
+      return Optional.absent();
+    }
+    return Optional.of(heap.first.get().sufmin().root.ckey);
+  }
+
   public Optional<E> extractMin() {
     Optional<E> result = heap.extractMin();
     size--;
