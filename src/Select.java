@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 public final class Select {
-
   public static <E> List<E> greatestKHeap(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
@@ -29,9 +28,12 @@ public final class Select {
         return Collections.singletonList(max);
       default:
         PriorityQueue<E> heap = new PriorityQueue<E>(k, comparator);
+        while (iterator.hasNext() && heap.size() < k) {
+          heap.add(iterator.next());
+        }
         while (iterator.hasNext()) {
           E elem = iterator.next();
-          if (heap.size() < k || comparator.compare(heap.peek(), elem) < 0) {
+          if (comparator.compare(heap.peek(), elem) < 0) {
             heap.remove();
             heap.add(elem);
           }
@@ -76,10 +78,12 @@ public final class Select {
           }
         }
         PriorityQueue<E> topKHeap = new PriorityQueue<E>(k, comparator);
+        while (!heap.isEmpty() && topKHeap.size() < k) {
+          topKHeap.add(heap.extractMin());
+        }
         while (!heap.isEmpty()) {
           E elem = heap.extractMin();
-          if (topKHeap.size() < k
-              || comparator.compare(elem, topKHeap.peek()) > 0) {
+          if (comparator.compare(elem, topKHeap.peek()) > 0) {
             topKHeap.remove();
             topKHeap.add(elem);
           }
