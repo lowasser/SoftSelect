@@ -440,22 +440,33 @@ public class SoftHeap<E> {
 
   private final double epsilon;
   private final int r;
-  private Heap heap;
+  private Heap heap = new Heap();
+  private int size = 0;
 
   SoftHeap(Comparator<? super E> comparator, double epsilon) {
     this.comparator = checkNotNull(comparator);
     this.epsilon = epsilon;
     checkArgument(epsilon > 0 && epsilon < 1);
     this.r = 5 + (int) Math.ceil(-Math.log(epsilon) / Math.log(2));
-    this.heap = new Heap();
   }
 
   public void add(E elem) {
     heap = heap.insert(elem);
+    size++;
   }
 
   public Optional<E> extractMin() {
-    return heap.extractMin();
+    Optional<E> result = heap.extractMin();
+    size--;
+    return result;
+  }
+
+  public boolean isEmpty() {
+    return size == 0;
+  }
+
+  public int size() {
+    return size;
   }
 
   private int compare(E a, E b) {
