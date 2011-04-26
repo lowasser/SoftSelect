@@ -170,17 +170,78 @@ public class SoftHeap<E> {
       return Optional.of(e);
     }
 
-    private void removeTree(Tree t) {
-      checkNotNull(t);
-      if (!t.hasPrev()) {
-        first = t.next;
-      } else {
-        t.prev().next = t.next;
+    public Heap insert(E elem) {
+      return meld(new Heap(elem));
+    }
+
+    public Heap meld(Heap q) {
+      checkNotNull(q);
+      Heap p = this;
+      if (p.rank > q.rank) {
+        Heap tmp = p;
+        p = q;
+        q = tmp;
       }
-      if (t.hasNext()) {
-        t.next().prev = t.prev;
+      p.mergeInto(q);
+      q.repeatedCombine(p.rank);
+      p.first = null;
+      p.rank = 0;
+      return q;
+    }
+
+    public void mergeInto(Heap q) {
+      assert rank <= q.rank;
+      if (!first.isPresent()) {
+        return;
       }
+      Tree t1 = first.get();
+      Tree t2 = q.first.get();
+      while (true) {
+        while (t1.rank() > t2.rank()) {
+          t2 = t2.next();
+        }
+        Optional<Tree> t1Prime = t1.next;
+        q.insertTree(t1, t2);
+        if (t1Prime.isPresent()) {
+          t1 = t1Prime.get();
+        } else {
+          break;
+        }
+      }
+    }
+
+    public void repeatedCombine(int k) {
+      if (!first.isPresent()) {
+        return;
+      }
+      Tree t = first.get();
+      while (t.hasNext()) {
+        if (t.rank() == t.next().rank()) {
+          if (!t.next().hasNext() || t.rank() != t.next().next().rank()) {
+            t.root = new Node(t.root, t.next().root);
+            removeTree(t.next());
+          }
+        } else if (t.rank() > k) {
+          break;
+        }
+        t = t.next();
+      }
+      if (t.rank() > rank) {
+        this.rank = t.rank();
+      }
+      t.updateSuffixMin();
       assert invariant();
+    }
+
+    private void insertTree(Tree t1, Tree t2) {
+      checkNotNull(t1);
+      checkNotNull(t2);
+      t1.next = Optional.of(t2);
+      if (t2.hasPrev()) {
+        t2.prev().next = Optional.of(t1);
+      } else {
+        first = Optional.of(t1);
+      }
     }
 
     private boolean invariant() {
@@ -206,6 +267,19 @@ public class SoftHeap<E> {
         }
       }
       return true;
+    }
+
+    private void removeTree(Tree t) {
+      checkNotNull(t);
+      if (!t.hasPrev()) {
+        first = t.next;
+      } else {
+        t.prev().next = t.next;
+      }
+      if (t.hasNext()) {
+        t.next().prev = t.prev;
+      }
+      assert invariant();
     }
   }
 
@@ -322,27 +396,16 @@ public class SoftHeap<E> {
       return root.compareTo(t.root);
     }
 
-    public void updateSuffixMin() {
-      if (!hasNext() || compareTo(next().sufmin) <= 0) {
-        sufmin = this;
-      } else {
-        sufmin = next().sufmin;
-      }
-      if (hasPrev()) {
-        prev().updateSuffixMin();
-      }
-    }
-
     public boolean hasNext() {
       return next.isPresent();
     }
 
-    public Tree next() {
-      return next.get();
-    }
-
     public boolean hasPrev() {
       return prev.isPresent();
+    }
+
+    public Tree next() {
+      return next.get();
     }
 
     public Tree prev() {
@@ -360,19 +423,39 @@ public class SoftHeap<E> {
     public Tree sufmin() {
       return checkNotNull(sufmin);
     }
+
+    public void updateSuffixMin() {
+      if (!hasNext() || compareTo(next().sufmin) <= 0) {
+        sufmin = this;
+      } else {
+        sufmin = next().sufmin;
+      }
+      if (hasPrev()) {
+        prev().updateSuffixMin();
+      }
+    }
   }
 
   private Comparator<? super E> comparator;
 
   private final double epsilon;
-
   private final int r;
+  private Heap heap;
 
   SoftHeap(Comparator<? super E> comparator, double epsilon) {
     this.comparator = checkNotNull(comparator);
     this.epsilon = epsilon;
     checkArgument(epsilon > 0 && epsilon < 1);
     this.r = 5 + (int) Math.ceil(-Math.log(epsilon) / Math.log(2));
+    this.heap = new Heap();
+  }
+
+  public void add(E elem) {
+    heap = heap.insert(elem);
+  }
+
+  public Optional<E> extractMin() {
+    return heap.extractMin();
   }
 
   private int compare(E a, E b) {
