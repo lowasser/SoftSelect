@@ -2,10 +2,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 
 import java.util.AbstractCollection;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
-public class SoftHeap<E> extends AbstractCollection<E> {
+public final class SoftHeap<E> {
   private static interface Linked<T> {
     public T get();
 
@@ -23,7 +23,7 @@ public class SoftHeap<E> extends AbstractCollection<E> {
   private static <T> Iterator<T>
       linkedIterator(final @Nullable Linked<T> linked) {
     return new Iterator<T>() {
-      private Linked<T> current;
+      private Linked<T> current = linked;
 
       @Override public boolean hasNext() {
         return current != null;
@@ -117,14 +117,10 @@ public class SoftHeap<E> extends AbstractCollection<E> {
      * {@link NoSuchElementException} if the list is empty.
      */
     public E pick() {
-      if (isEmpty()) {
-        throw new NoSuchElementException();
-      }
       E elem = head.elem;
       head = head.next;
       size--;
-      if (size == 0) {
-        head = null;
+      if (head == null) {
         tail = null;
       }
       return elem;
@@ -135,143 +131,46 @@ public class SoftHeap<E> extends AbstractCollection<E> {
     }
   }
 
-  private final class Heap extends AbstractCollection<E> {
-    @Nullable private Tree first = null;
-    private int rank = 0;
-    private int size = 0;
+  @Nullable private Tree first = null;
+  private int rank = 0;
+  private int size = 0;
 
-    public Heap() {
+  public E extractMin() {
+    if (isEmpty()) {
+      throw new NoSuchElementException();
     }
-
-    public Heap(@Nullable E elem) {
-      this.first = new Tree(elem);
-      this.size = 1;
-    }
-
-    public E extractMin() {
-      if (isEmpty()) {
-        throw new NoSuchElementException();
-      }
-      Tree t = first.sufmin();
-      Node x = t.root();
-      E e = x.list.pick();
-      if (x.list.size() * 2 <= x.targetSize()) {
-        if (!x.isLeaf()) {
-          // System.err.println("Sifting at " + t);
-          x.sift();
-          t.updateSuffixMin();
-        } else if (x.list.isEmpty()) {
-          // System.err.println("Removing " + t);
-          removeTree(t);
-          if (t.hasPrev())
-            t.prev.updateSuffixMin();
-        }
-      }
-      size--;
-      return e;
-    }
-
-    public Heap insert(@Nullable E elem) {
-      return meld(new Heap(elem));
-    }
-
-    @Override public boolean isEmpty() {
-      return first == null;
-    }
-
-    @Override public Iterator<E> iterator() {
-      List<Iterator<E>> iterators = Lists.newArrayList();
-      for (Tree t = first; t != null; t = t.next) {
-        iterators.add(t.root.iterator());
-      }
-      return Iterators.concat(iterators.iterator());
-    }
-
-    public Heap meld(Heap q) {
-      checkNotNull(q);
-      Heap p = this;
-      if (p.rank > q.rank) {
-        Heap tmp = p;
-        p = q;
-        q = tmp;
-      }
-      p.mergeInto(q);
-      q.repeatedCombine(p.rank);
-      p.first = null;
-      p.rank = 0;
-      q.size += p.size;
-      p.size = 0;
-      return q;
-    }
-
-    public void mergeInto(Heap q) {
-      assert rank <= q.rank;
-      Tree t1 = first;
-      Tree t2 = q.first;
-      while (t1 != null) {
-        while (t1.rank() > t2.rank()) {
-          t2 = t2.next;
-        }
-        Tree t1Prime = t1.next;
-        q.insertTree(t1, t2);
-        t1 = t1Prime;
+    Tree t = first.getSuffixMin();
+    Node x = t.root();
+    E e = x.list.pick();
+    if (x.list.size() * 2 <= x.targetSize()) {
+      if (!x.isLeaf()) {
+        x.sift();
+        updateSuffixMin(t);
+      } else if (x.list.isEmpty()) {
+        removeTree(t);
       }
     }
-
-    public void repeatedCombine(int k) {
-      if (isEmpty()) {
-        return;
-      }
-      Tree t = first;
-      while (t.hasNext()) {
-        if (t.rank() == t.next.rank()) {
-          if (!t.next.hasNext() || t.rank() != t.next.next.rank()) {
-            t.root = new Node(t.root, t.next.root);
-            removeTree(t.next);
-            if (!t.hasNext()) {
-              break;
-            }
-          }
-        } else if (t.rank() > k) {
-          break;
-        }
-        t = t.next;
-      }
-      if (t.rank() > rank) {
-        this.rank = t.rank();
-      }
-      t.updateSuffixMin();
-    }
-
-    @Override public int size() {
-      return size;
-    }
-
-    private void insertTree(Tree t1, Tree t2) {
-      if (t2.hasPrev()) {
-        t2.prev.next = t1;
-        t1.prev = t2.prev;
-      } else {
-        first = t1;
-      }
-      t1.next = t2;
-      t2.prev = t1;
-    }
-
-    private void removeTree(Tree t) {
-      checkNotNull(t);
-      if (!t.hasPrev()) {
-        first = t.next;
-      } else {
-        t.prev.next = t.next;
-      }
-      if (t.hasNext()) {
-        t.next.prev = t.prev;
-      }
-    }
+    size--;
+    return e;
   }
 
-  private final class Node implements Iterable<E> {
+  public boolean isEmpty() {
+    return first == null;
+  }
+
+  private void removeTree(Tree t) {
+    if (!t.hasPrev()) {
+      first = t.next;
+    } else {
+      t.prev.next = t.next;
+    }
+    if (t.hasNext()) {
+      t.next.prev = t.prev;
+    }
+    t.root = null;
+  }
+
+  private final class Node {
     @Nullable private E ckey = null;
     @Nullable private Node left = null;
     @Nullable private Node right = null;
@@ -303,19 +202,17 @@ public class SoftHeap<E> extends AbstractCollection<E> {
       return sizeTable[rank];
     }
 
-    @Override public Iterator<E> iterator() {
-      if (hasLeft()) {
-        if (hasRight()) {
-          return Iterators.concat(list.iterator(), left.iterator(),
-              right.iterator());
-        } else {
-          return Iterators.concat(list.iterator(), left.iterator());
-        }
-      } else if (hasRight()) {
-        return Iterators.concat(list.iterator(), right.iterator());
-      } else {
-        return list.iterator();
+    public int echoTo(E[] buffer, int i) {
+      for (E e : list) {
+        buffer[i++] = e;
       }
+      if (hasLeft()) {
+        i = left.echoTo(buffer, i);
+      }
+      if (hasRight()) {
+        i = right.echoTo(buffer, i);
+      }
+      return i;
     }
 
     boolean hasLeft() {
@@ -348,11 +245,11 @@ public class SoftHeap<E> extends AbstractCollection<E> {
     }
   }
 
-  private final class Tree implements Linked<Node> {
+  private final class Tree implements Linked<Node>, Comparable<Tree> {
     @Nullable private Tree next = null;
     @Nullable private Tree prev = null;
     private Node root;
-    private Tree sufmin = this;
+    private Tree suffixMin = this;
 
     private Tree(@Nullable E elem) {
       this.root = new Node(elem);
@@ -374,21 +271,6 @@ public class SoftHeap<E> extends AbstractCollection<E> {
       return checkNotNull(root);
     }
 
-    public Tree sufmin() {
-      return checkNotNull(sufmin);
-    }
-
-    public void updateSuffixMin() {
-      if (!hasNext() || compare(root.ckey, next.sufmin.root.ckey) <= 0) {
-        sufmin = this;
-      } else {
-        sufmin = next.sufmin;
-      }
-      if (hasPrev()) {
-        prev.updateSuffixMin();
-      }
-    }
-
     @Override public Node get() {
       return root;
     }
@@ -396,11 +278,29 @@ public class SoftHeap<E> extends AbstractCollection<E> {
     @Override public Tree next() {
       return next;
     }
+
+    private Tree getSuffixMin() {
+      Tree sufMin = suffixMin;
+      if (sufMin.root == null) {
+        sufMin = this;
+        if (hasNext()) {
+          Tree nSufMin = next().getSuffixMin();
+          if (compareTo(nSufMin) > 0) {
+            sufMin = nSufMin;
+          }
+        }
+        suffixMin = sufMin;
+      }
+      return sufMin;
+    }
+
+    @Override public int compareTo(Tree t) {
+      return compare(root.ckey, t.root.ckey);
+    }
   }
 
   private final int[] sizeTable = new int[31];
   private Comparator<? super E> comparator;
-  private Heap heap = new Heap();
 
   SoftHeap(Comparator<? super E> comparator, double epsilon) {
     this.comparator = checkNotNull(comparator);
@@ -415,7 +315,35 @@ public class SoftHeap<E> extends AbstractCollection<E> {
   }
 
   public boolean add(E elem) {
-    heap = heap.insert(elem);
+    if (isEmpty()) {
+      first = new Tree(elem);
+      rank = 0;
+      size = 1;
+    } else {
+      Tree t2 = first;
+      Tree t1 = first = new Tree(elem);
+      t1.next = t2;
+      t2.prev = t1;
+      do {
+        if (t1.rank() == t1.next.rank()) {
+          if (!t1.next.hasNext() || t1.rank() != t1.next.next.rank()) {
+            t1.root = new Node(t1.root, t1.next.root);
+            removeTree(t1.next);
+            if (!t1.hasNext()) {
+              break;
+            }
+          }
+        } else if (t1.rank() > 0) {
+          break;
+        }
+        t1 = t1.next;
+      } while (t1.hasNext());
+      if (t1.rank() > rank) {
+        this.rank = t1.rank();
+      }
+      updateSuffixMin(t1);
+      size++;
+    }
     return true;
   }
 
@@ -425,30 +353,47 @@ public class SoftHeap<E> extends AbstractCollection<E> {
    * greater than the element. If the heap is empty, throws a
    * {@link NoSuchElementException}.
    */
-  public E extractMin() {
-    return heap.extractMin();
-  }
-
-  public boolean isEmpty() {
-    return heap.isEmpty();
-  }
-
-  @Override public Iterator<E> iterator() {
-    return heap.iterator();
-  }
 
   public Optional<E> peekKey() {
-    if (heap.isEmpty()) {
+    if (isEmpty()) {
       return Optional.absent();
     }
-    return Optional.of(heap.first.sufmin().root.ckey);
+    return Optional.of(first.getSuffixMin().root.ckey);
   }
 
-  public int size() {
-    return heap.size();
+  private void updateSuffixMin(Tree t) {
+    Tree tmpmin = t;
+    if (t.hasNext()) {
+      tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
+    }
+    t.suffixMin = tmpmin;
+    t = t.prev;
+    while (t != null) {
+      if (t.compareTo(tmpmin) <= 0) {
+        tmpmin = t;
+      }
+      t.suffixMin = tmpmin;
+      t = t.prev;
+    }
   }
 
   private int compare(E a, E b) {
     return comparator.compare(a, b);
+  }
+
+  public int size() {
+    return size;
+  }
+
+  public E[] toArray() {
+    @SuppressWarnings("unchecked")
+    E[] elements = (E[]) new Object[size()];
+    Iterator<Node> rootIter = linkedIterator(first);
+    int i = 0;
+    while (rootIter.hasNext()) {
+      i = rootIter.next().echoTo(elements, i);
+    }
+    assert i == elements.length;
+    return elements;
   }
 }

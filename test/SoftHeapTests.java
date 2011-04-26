@@ -75,7 +75,7 @@ public class SoftHeapTests extends TestCase {
       return true;
     int alpha = heap.extractMin();
     int greater = 0;
-    for (Integer i : heap) {
+    for (int i : heap.toArray()) {
       if (i > alpha) {
         greater++;
       }

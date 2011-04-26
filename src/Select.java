@@ -77,23 +77,9 @@ public final class Select {
             }
           }
         }
-        PriorityQueue<E> topKHeap = new PriorityQueue<E>(k, comparator);
-        while (!heap.isEmpty() && topKHeap.size() < k) {
-          topKHeap.add(heap.extractMin());
-        }
-        while (!heap.isEmpty()) {
-          E elem = heap.extractMin();
-          if (comparator.compare(elem, topKHeap.peek()) > 0) {
-            topKHeap.remove();
-            topKHeap.add(elem);
-          }
-        }
-        @SuppressWarnings("unchecked")
-        E[] topK = (E[]) new Object[topKHeap.size()];
-        for (int i = topK.length - 1; !topKHeap.isEmpty(); i--) {
-          topK[i] = topKHeap.remove();
-        }
-        return Collections.unmodifiableList(Arrays.asList(topK));
+        E[] top2K = heap.toArray();
+        Arrays.sort(top2K, ordering.reverse());
+        return Arrays.asList(top2K).subList(0, k);
     }
   }
 }
