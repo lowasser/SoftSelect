@@ -11,6 +11,40 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 public final class Select {
+
+  public static <E> List<E> greatestKHeap(Comparator<? super E> comparator,
+      Iterator<E> iterator, int k) {
+    checkNotNull(comparator);
+    Ordering<? super E> ordering = Ordering.from(comparator);
+    switch (k) {
+      case 0:
+        return ImmutableList.of();
+      case 1:
+        if (!iterator.hasNext())
+          return ImmutableList.of();
+        E max = iterator.next();
+        while (iterator.hasNext()) {
+          max = ordering.max(max, iterator.next());
+        }
+        return Collections.singletonList(max);
+      default:
+        PriorityQueue<E> heap = new PriorityQueue<E>(k, comparator);
+        while (iterator.hasNext()) {
+          E elem = iterator.next();
+          if (heap.size() < k || comparator.compare(heap.peek(), elem) < 0) {
+            heap.remove();
+            heap.add(elem);
+          }
+        }
+        @SuppressWarnings("unchecked")
+        E[] topK = (E[]) new Object[heap.size()];
+        for (int i = topK.length - 1; !heap.isEmpty(); i--) {
+          topK[i] = heap.remove();
+        }
+        return Collections.unmodifiableList(Arrays.asList(topK));
+    }
+  }
+
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
@@ -52,7 +86,7 @@ public final class Select {
         }
         @SuppressWarnings("unchecked")
         E[] topK = (E[]) new Object[topKHeap.size()];
-        for (int i = 0; !topKHeap.isEmpty(); i++) {
+        for (int i = topK.length - 1; !topKHeap.isEmpty(); i--) {
           topK[i] = topKHeap.remove();
         }
         return Collections.unmodifiableList(Arrays.asList(topK));
