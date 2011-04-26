@@ -66,29 +66,21 @@ public class SoftHeapTests extends TestCase {
 
   private boolean testList(List<Integer> list, double epsilon) {
     int n = list.size();
-    SoftHeap<Integer> heap = new SoftHeap<Integer>(Ordering.natural(), epsilon);
+    int k = (n - 1) / 2;
+    SoftHeap<Integer> heap = new SoftHeap<Integer>(Ordering.natural(), 0.5);
     for (int i : list) {
       heap.add(i);
     }
-    System.err.println(heap.rankString());
-    List<Integer> sortedList = Ordering.natural().sortedCopy(list);
-    List<Integer> outputs = new ArrayList<Integer>(n);
-    int corrupt = 0;
-    int prevCurKey = Integer.MIN_VALUE;
-    for (int i = 0; !heap.isEmpty(); i++) {
-      assertEquals(n - i, heap.size());
-      int curKey = heap.peekKey().get();
-      assert curKey >= prevCurKey;
-      int extract = heap.extractMin().get();
-      assertTrue("curKey=" + curKey + " < extract=" + extract,
-          curKey >= extract);
-      outputs.add(extract);
-      if (curKey > extract) {
-        corrupt++;
+    if (heap.isEmpty())
+      return true;
+    int alpha = heap.extractMin().get();
+    int greater = 0;
+    for (Integer i : heap) {
+      if (i > alpha) {
+        greater++;
       }
     }
-    Collections.sort(outputs);
-    return outputs.equals(sortedList) && (corrupt <= n * epsilon);
+    return greater >= k;
   }
 
   public void testSoftHeap() {

@@ -17,7 +17,7 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
-public class SoftHeap<E> {
+public class SoftHeap<E> extends AbstractCollection<E> {
   private static final class ElemList<E> extends AbstractCollection<E> {
     private static final class ElemLinkedListNode<E> {
       private E elem;
@@ -326,8 +326,8 @@ public class SoftHeap<E> {
         nCorrupt += t.root.numCorrupt();
         t = t.next.get(null);
       }
-      System.err.println("nCorrupt = " + nCorrupt + "; n = " + n
-          + "; n * epsilon = " + (n * epsilon));
+      //System.err.println("nCorrupt = " + nCorrupt + "; n = " + n
+      //  + "; n * epsilon = " + (n * epsilon));
       assert nCorrupt <= n * epsilon;
       return true;
     }
@@ -593,8 +593,9 @@ public class SoftHeap<E> {
     return ranks.toString() + " " + sufmins.toString();
   }
 
-  public void add(E elem) {
+  public boolean add(E elem) {
     heap = heap.insert(elem);
+    return true;
   }
 
   public Optional<E> peekKey() {
@@ -618,6 +619,10 @@ public class SoftHeap<E> {
 
   private int compare(E a, E b) {
     return comparator.compare(a, b);
+  }
+
+  @Override public Iterator<E> iterator() {
+    return heap.iterator();
   }
 
 }
