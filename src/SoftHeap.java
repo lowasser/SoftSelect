@@ -140,18 +140,87 @@ public class SoftHeap<E> {
     }
   }
 
-  private final class Tree implements Comparable<Tree> {
+  private final class Heap {
+    Optional<Tree> first = Optional.absent();
+    int rank = 0;
+
+    public Heap() {
+    }
+
+    public Heap(E elem) {
+      checkNotNull(elem);
+      this.first = Optional.of(new Tree(elem));
+    }
+
+    public Optional<E> extractMin() {
+      if (!first.isPresent()) {
+        return Optional.absent();
+      }
+      Tree t = first.get().sufmin();
+      Node x = t.root();
+      E e = x.list.pick();
+      if (x.list.size() * 2 <= x.targetSize) {
+        if (!x.isLeaf()) {
+          x.sift();
+          t.updateSuffixMin();
+        } else if (x.list.isEmpty()) {
+          removeTree(t);
+        }
+      }
+      return Optional.of(e);
+    }
+
+    private void removeTree(Tree t) {
+      checkNotNull(t);
+      if (!t.hasPrev()) {
+        first = t.next;
+      } else {
+        t.prev().next = t.next;
+      }
+      if (t.hasNext()) {
+        t.next().prev = t.prev;
+      }
+      assert invariant();
+    }
+
+    private boolean invariant() {
+      if (first.isPresent()) {
+        Tree t = first.get();
+        while (true) {
+          Tree t2 = t;
+          while (t2 != t.sufmin) {
+            if (!t2.hasNext()) {
+              return false;
+            }
+            t2 = t2.next();
+          }
+          if (t.hasNext()) {
+            t2 = t.next();
+            if (!(t2.hasPrev() && t2.prev() == t)) {
+              return false;
+            }
+            t = t2;
+          } else {
+            break;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  private final class Node implements Comparable<Node> {
     E ckey;
-    Optional<Tree> left = Optional.absent();
+    Optional<Node> left = Optional.absent();
     final ElemList<E> list;
     final int rank;
-    Optional<Tree> right = Optional.absent();
+    Optional<Node> right = Optional.absent();
     final int targetSize;
 
     /**
      * Constructs a singleton tree.
      */
-    Tree(E elem) {
+    Node(E elem) {
       this.ckey = checkNotNull(elem);
       this.list = new ElemList<E>(elem);
       this.targetSize = 1;
@@ -162,7 +231,7 @@ public class SoftHeap<E> {
     /**
      * Constructs a tree of rank k+1 from two trees of rank k.
      */
-    Tree(Tree left, Tree right) {
+    Node(Node left, Node right) {
       assert left.rank == right.rank;
       this.rank = left.rank + 1;
       this.left = Optional.of(left);
@@ -177,7 +246,7 @@ public class SoftHeap<E> {
       assert invariant();
     }
 
-    @Override public int compareTo(Tree t) {
+    @Override public int compareTo(Node t) {
       checkNotNull(t);
       return compare(ckey, t.ckey);
     }
@@ -190,11 +259,11 @@ public class SoftHeap<E> {
       return right.isPresent();
     }
 
-    Tree left() {
+    Node left() {
       return left.get();
     }
 
-    Tree right() {
+    Node right() {
       return right.get();
     }
 
@@ -202,7 +271,7 @@ public class SoftHeap<E> {
       while (list.size() < targetSize && !isLeaf()) {
         if (!left.isPresent()
             || (right.isPresent() && left.get().compareTo(right.get()) > 0)) {
-          Optional<Tree> tmp = left;
+          Optional<Node> tmp = left;
           left = right;
           right = tmp;
         }
@@ -216,10 +285,6 @@ public class SoftHeap<E> {
       assert invariant();
     }
 
-    private boolean isLeaf() {
-      return !(hasLeft() || hasRight());
-    }
-
     private boolean invariant() {
       boolean good = true;
       if (hasLeft()) {
@@ -228,10 +293,72 @@ public class SoftHeap<E> {
       if (hasRight()) {
         good = good && !right().list.isEmpty();
       }
-      if (!isLeaf()) {
-        good = good && !list.isEmpty();
+      if (rank <= r) {
+        good = good && list.size() == 1;
+      } else if (!isLeaf()) {
+        good = good && list.size() * 2 >= targetSize;
+        good = good && list.size() < 3 * targetSize;
       }
       return good;
+    }
+
+    private boolean isLeaf() {
+      return !(hasLeft() || hasRight());
+    }
+  }
+
+  private final class Tree implements Comparable<Tree> {
+    private Optional<Tree> next = Optional.absent();
+    private Optional<Tree> prev = Optional.absent();
+    private Node root;
+    private Tree sufmin = this;
+
+    public Tree(E elem) {
+      checkNotNull(elem);
+      this.root = new Node(elem);
+    }
+
+    @Override public int compareTo(Tree t) {
+      return root.compareTo(t.root);
+    }
+
+    public void updateSuffixMin() {
+      if (!hasNext() || compareTo(next().sufmin) <= 0) {
+        sufmin = this;
+      } else {
+        sufmin = next().sufmin;
+      }
+      if (hasPrev()) {
+        prev().updateSuffixMin();
+      }
+    }
+
+    public boolean hasNext() {
+      return next.isPresent();
+    }
+
+    public Tree next() {
+      return next.get();
+    }
+
+    public boolean hasPrev() {
+      return prev.isPresent();
+    }
+
+    public Tree prev() {
+      return prev.get();
+    }
+
+    public int rank() {
+      return root.rank;
+    }
+
+    public Node root() {
+      return checkNotNull(root);
+    }
+
+    public Tree sufmin() {
+      return checkNotNull(sufmin);
     }
   }
 
