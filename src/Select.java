@@ -1,5 +1,7 @@
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.ForwardingQueue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
@@ -9,8 +11,47 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Queue;
+
+import javax.annotation.Nullable;
 
 public final class Select {
+
+  private static final class BoundedPriorityQueue<E> extends ForwardingQueue<E> {
+    private final PriorityQueue<E> queue;
+    private final Comparator<? super E> comparator;
+    private final int k;
+
+    public BoundedPriorityQueue(Comparator<? super E> comparator, int k) {
+      checkArgument(k > 0);
+      this.comparator = checkNotNull(comparator);
+      this.queue = new PriorityQueue<E>(k, comparator);
+      this.k = k;
+    }
+
+    /**
+     * Kicks out the smallest element if it would make the queue bigger than k.
+     */
+    public boolean add(@Nullable E element) {
+      return offer(element);
+    }
+
+    @Override public boolean offer(@Nullable E element) {
+      if (queue.size() < k) {
+        return super.offer(element);
+      } else if (comparator.compare(element, peek()) > 0) {
+        remove();
+        return super.offer(element);
+      } else {
+        return false;
+      }
+    }
+
+    @Override protected Queue<E> delegate() {
+      return queue;
+    }
+  }
+
   public static <E> List<E> greatestKHeap(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
@@ -27,16 +68,9 @@ public final class Select {
         }
         return Collections.singletonList(max);
       default:
-        PriorityQueue<E> heap = new PriorityQueue<E>(k, comparator);
-        while (iterator.hasNext() && heap.size() < k) {
-          heap.add(iterator.next());
-        }
+        Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
         while (iterator.hasNext()) {
-          E elem = iterator.next();
-          if (comparator.compare(heap.peek(), elem) < 0) {
-            heap.remove();
-            heap.add(elem);
-          }
+          heap.offer(iterator.next());
         }
         @SuppressWarnings("unchecked")
         E[] topK = (E[]) new Object[heap.size()];
@@ -87,11 +121,14 @@ public final class Select {
             }
           }
         }
+        Queue<E> topKHeap = new BoundedPriorityQueue<E>(comparator, k);
+        heap.addAllTo(topKHeap);
         @SuppressWarnings("unchecked")
-        E[] top2K = (E[]) heap.toArray();
-        Arrays.sort(top2K, ordering.reverse());
-        return k < top2K.length ? Arrays.asList(top2K).subList(0, k) : Arrays
-          .asList(top2K);
+        E[] topK = (E[]) new Object[topKHeap.size()];
+        for (int i = topK.length - 1; !topKHeap.isEmpty(); i--) {
+          topK[i] = topKHeap.remove();
+        }
+        return Collections.unmodifiableList(Arrays.asList(topK));
     }
   }
 }
