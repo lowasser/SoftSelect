@@ -63,7 +63,7 @@ public final class Select {
         }
         return Collections.singletonList(max);
       default:
-        SoftHeap<E> heap = new SoftHeap<E>(comparator, 0.5);
+        SoftHeap<E> heap = new SoftHeap<E>(comparator);
         while (iterator.hasNext() && heap.size() <= 2 * k) {
           heap.add(iterator.next());
         }

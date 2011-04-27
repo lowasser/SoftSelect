@@ -49,25 +49,25 @@ public class SoftHeapTests extends TestCase {
     };
   }
 
-  private List<Integer> failingList(List<Integer> init, double epsilon) {
+  private List<Integer> failingList(List<Integer> init) {
     init = Collections.unmodifiableList(init);
-    if (testList(init, epsilon)) {
+    if (testList(init)) {
       return null;
     } else {
       System.err.println("Shrinking...");
       List<Integer> shrunk = null;
       Iterator<List<Integer>> iter = shrinks(init);
       while (shrunk == null && iter.hasNext()) {
-        shrunk = failingList(iter.next(), epsilon);
+        shrunk = failingList(iter.next());
       }
       return (shrunk == null) ? init : shrunk;
     }
   }
 
-  private boolean testList(List<Integer> list, double epsilon) {
+  private boolean testList(List<Integer> list) {
     int n = list.size();
     int k = (n - 1) / 2;
-    SoftHeap<Integer> heap = new SoftHeap<Integer>(Ordering.natural(), 0.5);
+    SoftHeap<Integer> heap = new SoftHeap<Integer>(Ordering.natural());
     for (int i : list) {
       heap.add(i);
     }
@@ -86,21 +86,12 @@ public class SoftHeapTests extends TestCase {
   public void testSoftHeap() {
     for (int z = 1; z <= 1000; z++) {
       int n = random.nextInt(200);
-      double epsilon = random.nextDouble();
       int[] elems = new int[n];
       for (int i = 0; i < n; i++) {
         elems[i] = random.nextInt(n * 2);
       }
-      List<Integer> shrunk = failingList(Ints.asList(elems), epsilon);
+      List<Integer> shrunk = failingList(Ints.asList(elems));
       if (shrunk != null) {
-        SoftHeap<Integer> heap = new SoftHeap<Integer>(Ordering.natural(),
-            epsilon);
-        for (int i : shrunk) {
-          heap.add(i);
-        }
-        while (!heap.isEmpty()) {
-          heap.extractMin();
-        }
         assertNull(shrunk.size() + " : " + shrunk.toString(), shrunk);
       }
     }

@@ -1,49 +1,16 @@
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Ordering;
 
 import java.util.AbstractCollection;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
 public final class SoftHeap<E> {
-  private static interface Linked<T> {
-    public T get();
-
-    public Linked<T> next();
-  }
-
-  private static <T> Iterator<T>
-      linkedIterator(final @Nullable Linked<T> linked) {
-    return new Iterator<T>() {
-      private Linked<T> current = linked;
-
-      @Override public boolean hasNext() {
-        return current != null;
-      }
-
-      @Override public T next() {
-        if (!hasNext()) {
-          throw new NoSuchElementException();
-        }
-        T cur = current.get();
-        current = current.next();
-        return cur;
-      }
-
-      @Override public void remove() {
-        throw new UnsupportedOperationException();
-      }
-    };
-  }
-
   private static final class ElemLinkedListNode<E> implements Linked<E> {
     @Nullable private final E elem;
     private ElemLinkedListNode<E> next;
@@ -88,12 +55,7 @@ public final class SoftHeap<E> {
       this.size = 1;
     }
 
-    public void clear() {
-      this.head = this.tail = null;
-      this.size = 0;
-    }
-
-    public void consume(ElemList<E> list) {
+    public void addAll(ElemList<E> list) {
       if (isEmpty()) {
         this.head = list.head;
       } else {
@@ -101,7 +63,11 @@ public final class SoftHeap<E> {
       }
       this.size += list.size;
       this.tail = list.tail;
-      list.clear();
+    }
+
+    public void clear() {
+      this.head = this.tail = null;
+      this.size = 0;
     }
 
     public boolean isEmpty() {
@@ -131,43 +97,10 @@ public final class SoftHeap<E> {
     }
   }
 
-  @Nullable private Tree first = null;
-  private int rank = 0;
-  private int size = 0;
+  private static interface Linked<T> {
+    public T get();
 
-  public E extractMin() {
-    if (isEmpty()) {
-      throw new NoSuchElementException();
-    }
-    Tree t = first.getSuffixMin();
-    Node x = t.root();
-    E e = x.list.pick();
-    if (x.list.size() * 2 <= x.targetSize()) {
-      if (!x.isLeaf()) {
-        x.sift();
-        updateSuffixMin(t);
-      } else if (x.list.isEmpty()) {
-        removeTree(t);
-      }
-    }
-    size--;
-    return e;
-  }
-
-  public boolean isEmpty() {
-    return first == null;
-  }
-
-  private void removeTree(Tree t) {
-    if (!t.hasPrev()) {
-      first = t.next;
-    } else {
-      t.prev.next = t.next;
-    }
-    if (t.hasNext()) {
-      t.next.prev = t.prev;
-    }
-    t.root = null;
+    public Linked<T> next();
   }
 
   private final class Node {
@@ -198,10 +131,6 @@ public final class SoftHeap<E> {
       sift();
     }
 
-    private int targetSize() {
-      return sizeTable[rank];
-    }
-
     public int echoTo(E[] buffer, int i) {
       for (E e : list) {
         buffer[i++] = e;
@@ -230,11 +159,12 @@ public final class SoftHeap<E> {
           left = right;
           right = tmp;
         }
-        list.consume(left.list);
+        list.addAll(left.list);
         ckey = left.ckey;
         if (left.isLeaf()) {
           left = null;
         } else {
+          left.list.clear();
           left.sift();
         }
       }
@@ -242,6 +172,10 @@ public final class SoftHeap<E> {
 
     private boolean isLeaf() {
       return !(hasLeft() || hasRight());
+    }
+
+    private int targetSize() {
+      return SIZE_TABLE[rank];
     }
   }
 
@@ -255,6 +189,14 @@ public final class SoftHeap<E> {
       this.root = new Node(elem);
     }
 
+    @Override public int compareTo(Tree t) {
+      return compare(root.ckey, t.root.ckey);
+    }
+
+    @Override public Node get() {
+      return root;
+    }
+
     public boolean hasNext() {
       return next != null;
     }
@@ -263,20 +205,12 @@ public final class SoftHeap<E> {
       return prev != null;
     }
 
-    public int rank() {
-      return root.rank;
-    }
-
-    public Node root() {
-      return checkNotNull(root);
-    }
-
-    @Override public Node get() {
-      return root;
-    }
-
     @Override public Tree next() {
       return next;
+    }
+
+    public int rank() {
+      return root.rank;
     }
 
     private Tree getSuffixMin() {
@@ -293,25 +227,53 @@ public final class SoftHeap<E> {
       }
       return sufMin;
     }
+  }
 
-    @Override public int compareTo(Tree t) {
-      return compare(root.ckey, t.root.ckey);
+  private static final double EPSILON = 0.5;
+  private static final int R = 6;
+
+  private static final int[] SIZE_TABLE = new int[31];
+
+  static {
+    for (int i = 0; i <= R; i++) {
+      SIZE_TABLE[i] = 1;
+    }
+    for (int i = R + 1; i < SIZE_TABLE.length; i++) {
+      SIZE_TABLE[i] = (3 * SIZE_TABLE[i - 1] + 1) / 2;
     }
   }
 
-  private final int[] sizeTable = new int[31];
+  private static <T> Iterator<T>
+      linkedIterator(final @Nullable Linked<T> linked) {
+    return new Iterator<T>() {
+      private Linked<T> current = linked;
+
+      @Override public boolean hasNext() {
+        return current != null;
+      }
+
+      @Override public T next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        T cur = current.get();
+        current = current.next();
+        return cur;
+      }
+
+      @Override public void remove() {
+        throw new UnsupportedOperationException();
+      }
+    };
+  }
+
+  @Nullable private Tree first = null;
+  private int rank = 0;
+  private int size = 0;
   private Comparator<? super E> comparator;
 
-  SoftHeap(Comparator<? super E> comparator, double epsilon) {
+  SoftHeap(Comparator<? super E> comparator) {
     this.comparator = checkNotNull(comparator);
-    checkArgument(epsilon > 0 && epsilon < 1);
-    int r = 5 + (int) Math.ceil(-Math.log(epsilon) / Math.log(2));
-    for (int i = 0; i <= r; i++) {
-      sizeTable[i] = 1;
-    }
-    for (int i = r + 1; i < sizeTable.length; i++) {
-      sizeTable[i] = (3 * sizeTable[i - 1] + 1) / 2;
-    }
   }
 
   public boolean add(E elem) {
@@ -347,6 +309,29 @@ public final class SoftHeap<E> {
     return true;
   }
 
+  public E extractMin() {
+    if (isEmpty()) {
+      throw new NoSuchElementException();
+    }
+    Tree t = first.getSuffixMin();
+    Node x = t.root;
+    E e = x.list.pick();
+    if (x.list.size() * 2 <= x.targetSize()) {
+      if (!x.isLeaf()) {
+        x.sift();
+        updateSuffixMin(t);
+      } else if (x.list.isEmpty()) {
+        removeTree(t);
+      }
+    }
+    size--;
+    return e;
+  }
+
+  public boolean isEmpty() {
+    return first == null;
+  }
+
   /**
    * Deletes an element from the heap. The element returned will be the element
    * with the smallest current key, but the current key of an element may be
@@ -359,26 +344,6 @@ public final class SoftHeap<E> {
       return Optional.absent();
     }
     return Optional.of(first.getSuffixMin().root.ckey);
-  }
-
-  private void updateSuffixMin(Tree t) {
-    Tree tmpmin = t;
-    if (t.hasNext()) {
-      tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
-    }
-    t.suffixMin = tmpmin;
-    t = t.prev;
-    while (t != null) {
-      if (t.compareTo(tmpmin) <= 0) {
-        tmpmin = t;
-      }
-      t.suffixMin = tmpmin;
-      t = t.prev;
-    }
-  }
-
-  private int compare(E a, E b) {
-    return comparator.compare(a, b);
   }
 
   public int size() {
@@ -395,5 +360,36 @@ public final class SoftHeap<E> {
     }
     assert i == elements.length;
     return elements;
+  }
+
+  private int compare(E a, E b) {
+    return comparator.compare(a, b);
+  }
+
+  private void removeTree(Tree t) {
+    if (!t.hasPrev()) {
+      first = t.next;
+    } else {
+      t.prev.next = t.next;
+    }
+    if (t.hasNext()) {
+      t.next.prev = t.prev;
+    }
+    t.root = null;
+  }
+
+  private void updateSuffixMin(Tree t) {
+    Tree tmpmin = t;
+    if (t.hasNext()) {
+      tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
+    }
+    t.suffixMin = tmpmin;
+    while (t.prev != null) {
+      t = t.prev;
+      if (t.compareTo(tmpmin) <= 0) {
+        tmpmin = t;
+      }
+      t.suffixMin = tmpmin;
+    }
   }
 }
