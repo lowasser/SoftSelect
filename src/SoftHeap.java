@@ -131,7 +131,7 @@ public final class SoftHeap<E> {
       sift();
     }
 
-    public int echoTo(E[] buffer, int i) {
+    public int echoTo(Object[] buffer, int i) {
       for (E e : list) {
         buffer[i++] = e;
       }
@@ -350,9 +350,9 @@ public final class SoftHeap<E> {
     return size;
   }
 
-  public E[] toArray() {
+  public Object[] toArray() {
     @SuppressWarnings("unchecked")
-    E[] elements = (E[]) new Object[size()];
+    Object[] elements = new Object[size()];
     Iterator<Node> rootIter = linkedIterator(first);
     int i = 0;
     while (rootIter.hasNext()) {

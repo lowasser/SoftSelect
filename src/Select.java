@@ -77,9 +77,11 @@ public final class Select {
             }
           }
         }
-        E[] top2K = heap.toArray();
+        @SuppressWarnings("unchecked")
+        E[] top2K = (E[]) heap.toArray();
         Arrays.sort(top2K, ordering.reverse());
-        return Arrays.asList(top2K).subList(0, k);
+        return k < top2K.length ? Arrays.asList(top2K).subList(0, k) : Arrays
+          .asList(top2K);
     }
   }
 }
