@@ -103,12 +103,14 @@ public final class SoftHeap<E> {
     public Linked<T> next();
   }
 
+  private int siftCompares = 0;
+
   private final class Node {
     @Nullable private E ckey = null;
     @Nullable private Node left = null;
     @Nullable private Node right = null;
     private final ElemList<E> list;
-    private final int rank;
+    private final byte rank;
 
     /**
      * Constructs a singleton tree.
@@ -124,7 +126,7 @@ public final class SoftHeap<E> {
      */
     private Node(Node left, Node right) {
       assert left.rank == right.rank;
-      this.rank = left.rank + 1;
+      this.rank = (byte) (left.rank + 1);
       this.left = left;
       this.right = right;
       this.list = new ElemList<E>();
@@ -154,7 +156,8 @@ public final class SoftHeap<E> {
 
     void sift() {
       while (list.size() < targetSize() && !isLeaf()) {
-        if (!hasLeft() || (hasRight() && compare(left.ckey, right.ckey) > 0)) {
+        if (!hasLeft()
+            || (hasRight() && compare(left.ckey, right.ckey) > 0 && (siftCompares++ >= 0))) {
           Node tmp = left;
           left = right;
           right = tmp;
@@ -162,7 +165,8 @@ public final class SoftHeap<E> {
         list.addAll(left.list);
         ckey = left.ckey;
         if (left.isLeaf()) {
-          left = null;
+          left = right;
+          right = null;
         } else {
           left.list.clear();
           left.sift();
@@ -175,7 +179,7 @@ public final class SoftHeap<E> {
     }
 
     private int targetSize() {
-      return SIZE_TABLE[rank];
+      return (rank < R) ? 1 : SIZE_TABLE[rank - R];
     }
   }
 
@@ -209,7 +213,7 @@ public final class SoftHeap<E> {
       return next;
     }
 
-    public int rank() {
+    public byte rank() {
       return root.rank;
     }
 
@@ -218,10 +222,8 @@ public final class SoftHeap<E> {
       if (sufMin.root == null) {
         sufMin = this;
         if (hasNext()) {
-          Tree nSufMin = next().getSuffixMin();
-          if (compareTo(nSufMin) > 0) {
-            sufMin = nSufMin;
-          }
+          sufMin = Ordering.natural().min(sufMin, next.getSuffixMin());
+          suffixMinCompares++;
         }
         suffixMin = sufMin;
       }
@@ -230,15 +232,21 @@ public final class SoftHeap<E> {
   }
 
   private static final double EPSILON = 0.5;
-  private static final int R = 6;
+  private static final int R = 4;
+  /**
+   * NB: The bound in the paper specifies R=6 for epsilon=0.5. However, an exact
+   * numerical analysis for this particular case proves that R=5 is guaranteed
+   * to work -- and whenever N <= 2^20, R=4 also works. R=4 reduces the number
+   * of comparisons by 15% compared to R=5 and 25% compared to R=6, so I think
+   * that's reasonable, given that this is used for softselect, in which k is
+   * typically not that big.
+   */
 
   private static final int[] SIZE_TABLE = new int[31];
 
   static {
-    for (int i = 0; i <= R; i++) {
-      SIZE_TABLE[i] = 1;
-    }
-    for (int i = R + 1; i < SIZE_TABLE.length; i++) {
+    SIZE_TABLE[0] = 1;
+    for (int i = 1; i < SIZE_TABLE.length; i++) {
       SIZE_TABLE[i] = (3 * SIZE_TABLE[i - 1] + 1) / 2;
     }
   }
@@ -268,7 +276,7 @@ public final class SoftHeap<E> {
   }
 
   @Nullable private Tree first = null;
-  private int rank = 0;
+  private byte rank = 0;
   private int size = 0;
   private Comparator<? super E> comparator;
 
@@ -286,10 +294,17 @@ public final class SoftHeap<E> {
       Tree t1 = first = new Tree(elem);
       t1.next = t2;
       t2.prev = t1;
+      Tree lastChanged = t1;
       do {
         if (t1.rank() == t1.next.rank()) {
           if (!t1.next.hasNext() || t1.rank() != t1.next.next.rank()) {
+            E t2Root = t1.next.root.ckey;
             t1.root = new Node(t1.root, t1.next.root);
+            if (t1.root.ckey == t2Root) {
+              t1.suffixMin = t1.next.suffixMin;
+            } else {
+              lastChanged = t1;
+            }
             removeTree(t1.next);
             if (!t1.hasNext()) {
               break;
@@ -303,10 +318,17 @@ public final class SoftHeap<E> {
       if (t1.rank() > rank) {
         this.rank = t1.rank();
       }
-      updateSuffixMin(t1);
+      updateSuffixMin(lastChanged);
       size++;
     }
     return true;
+  }
+
+  public E peekMin() {
+    if (isEmpty()) {
+      throw new NoSuchElementException();
+    }
+    return first.getSuffixMin().root.list.head.elem;
   }
 
   public E extractMin() {
@@ -361,15 +383,18 @@ public final class SoftHeap<E> {
     return elements;
   }
 
+  private int totalCompares = 0;
+
   private int compare(E a, E b) {
+    totalCompares++;
     return comparator.compare(a, b);
   }
 
   private void removeTree(Tree t) {
-    if (!t.hasPrev()) {
-      first = t.next;
-    } else {
+    if (t.hasPrev()) {
       t.prev.next = t.next;
+    } else {
+      first = t.next;
     }
     if (t.hasNext()) {
       t.next.prev = t.prev;
@@ -377,17 +402,19 @@ public final class SoftHeap<E> {
     t.root = null;
   }
 
+  int suffixMinCompares = 0;
+
   private void updateSuffixMin(Tree t) {
     Tree tmpmin = t;
     if (t.hasNext()) {
+      suffixMinCompares++;
       tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
     }
     t.suffixMin = tmpmin;
     while (t.prev != null) {
       t = t.prev;
-      if (t.compareTo(tmpmin) <= 0) {
-        tmpmin = t;
-      }
+      tmpmin = Ordering.natural().min(t, tmpmin);
+      suffixMinCompares++;
       t.suffixMin = tmpmin;
     }
   }

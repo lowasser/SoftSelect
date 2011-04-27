@@ -9,8 +9,8 @@ import junit.framework.TestCase;
 public class SelectTests extends TestCase {
   public void testSelect() {
     Random random = new Random(0);
-    for (int z = 1; z <= 100; z++) {
-      int n = random.nextInt(10000);
+    for (int z = 1; z <= 1000; z++) {
+      int n = random.nextInt(100000);
       int k = random.nextInt(1000);
       int[] elems = new int[n];
       for (int i = 0; i < n; i++) {

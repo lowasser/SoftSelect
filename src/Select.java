@@ -73,16 +73,17 @@ public final class Select {
         return Collections.singletonList(max);
       default:
         SoftHeap<E> heap = new SoftHeap<E>(comparator);
-        while (iterator.hasNext() && heap.size() <= 2 * k) {
+        while (iterator.hasNext() && heap.size() < 2 * k) {
           heap.add(iterator.next());
         }
+        int alphaCompares = 0;
         if (iterator.hasNext()) {
-          E alpha = heap.extractMin();
           while (iterator.hasNext()) {
             E elem = iterator.next();
-            if (comparator.compare(alpha, elem) < 0) {
+            alphaCompares++;
+            if (comparator.compare(heap.peekMin(), elem) < 0) {
+              heap.extractMin();
               heap.add(elem);
-              alpha = ordering.max(alpha, heap.extractMin());
             }
           }
         }
