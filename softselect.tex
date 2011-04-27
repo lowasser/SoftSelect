@@ -1,0 +1,132 @@
+\documentclass[11pt]{article}
+\usepackage{algorithm2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsthm}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}[lemma]{Theorem}
+\begin{document}
+{\bf NOTE: I am not yet sure that this algorithm is actually new, yet.  I am looking into it.}
+
+A well-understood problem in computer science is {\em selection}: given a collection of size $n$, find the $k$ largest elements.  We typically expect that $k$ is several orders of magnitude smaller than $n$.  There are two commonly used solutions to this problem.  
+
+The first, typically called quickselect, is due to \cite{Ho61}.  It is implemented by modifying the quicksort algorithm to recurse only once, as follows.
+
+\begin{algorithm}[H]
+\SetKwFunction{QuickSelect}{quick-select}
+\SetKwFunction{ChoosePivot}{choose-pivot}
+\SetKwFunction{Partition}{partition}
+\SetKwFunction{Size}{size}
+\SetKwData{PivotPos}{newPivotPos}
+\SetKwInOut{Call}{Call}
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Result}{Result}
+\SetKwData{Pivot}{pivot}
+\Call{\QuickSelect($X, k$)}
+\Input{An array $X$ of size $n$ and an integer $0 \le k \le n$.}
+\Result{Moves the $k$ largest elements of $X$ to the last $k$ positions in $X$.}
+\lIf{$k = n$ {\bf or} $k = 0$}{\Return\;}
+\Pivot$\leftarrow$ \ChoosePivot($X$)\;
+\PivotPos$\leftarrow$\Partition{$X$,\Pivot}\;
+$X_L \leftarrow X[0 \ldots \PivotPos - 1]$\tcp*{The elements of $X_L$ are $< \Pivot$}
+$X_R \leftarrow X[\PivotPos + 1 \ldots]$\tcp*{The elements of $X_R$ are $> \Pivot$}
+\uIf{\Size{$X_R$} $> k$}{\QuickSelect{$X_R$, $k$}\;}
+\uElseIf{\Size{$X_R$} $< k$}{\QuickSelect{$X_L$, $k - \mbox{\Size{$X_R$}}$}\;}
+\lElse(\tcp*[f]{\Size{$X_R$} $= k$}){\Return{}}
+\end{algorithm}
+If we can choose our pivot to have rank between $\epsilon n$ and $(1-\epsilon) n$ for some $\epsilon > 0$, this algorithm will take $O(n)$.  The most well-known algorithm to accomplish this deterministically is presented in its essentials in \cite{BFPRT73}, and is as follows:
+
+\begin{algorithm}[H]
+\SetKwFunction{QuickSelect}{quick-select}
+\SetKwFunction{ChoosePivot}{choose-pivot}
+\SetKwFunction{Partition}{partition}
+\SetKwFunction{Size}{size}
+\SetKwData{PivotPos}{newPivotPos}
+\SetKwInOut{Call}{Call}
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\SetKwData{Pivot}{pivot}
+\Call{\ChoosePivot{$X$}}
+\Input{An array $X$ of size $n$.}
+\Output{$x \in X$ such that the rank of $x$ is between $\frac{3}{10}n$ and $\frac{7}{10}n$.}
+Initialize $Y$ as a new array with length $n = \lfloor n/5 \rfloor$\;
+\For{$i = 0$ to $\lfloor n/5 \rfloor - 1$}{
+  $Y[i] \leftarrow$ the median of $X[5i \ldots 5i + 4]$\;
+}
+\QuickSelect{Y,$\lfloor n/2 \rfloor$}\;
+\Return{the minimum element of $Y[\lceil n/2 \rceil \ldots]$}\;
+\end{algorithm}
+For evident reasons, this is sometimes called the median-of-medians pivot procedure.
+
+The second algorithm, which we will refer to as heapselect, is extremely simple.
+
+\begin{algorithm}[H]
+\SetKwFunction{NewHeap}{new-heap}
+\SetKwFunction{Insert}{insert}
+\SetKwFunction{Size}{size}
+\SetKwFunction{ToArray}{to-array}
+\SetKwFunction{DeleteMin}{delete-min}
+\SetKwData{Heap}{heap}
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{A collection $X$ of size $n$ and an integer $0 \le k \le n$.}
+\Output{An array of the $k$ largest elements of $X$.}
+\Heap$\leftarrow$\NewHeap{$k+1$}\tcp*{\Heap is initialized with capacity $k+1$}
+\ForEach{$x \in X$}{
+	\Insert{$x$,\Heap}\;
+	\If{\Size{\Heap}$>k$}{
+		\DeleteMin{\Heap}\;
+	}
+}
+\Return{\ToArray{\Heap}}\;
+\end{algorithm}
+This takes $O(n \log k)$, but has the advantage that it requires only one pass over the collection. In computations on extremely large data sets, we may not be able to fit the entire collection into memory at once.  In these cases, it is extremely useful to have an algorithm that performs only a single pass over the data.
+
+I present an algorithm that performs only a single pass over the data, and runs in $O(n)$ time, but uses only $O(k)$ memory.  My algorithm, which I call softselect, makes critical use of an esoteric data structure called {\em soft heaps}, which were invented by \cite{Ch00}.  Soft heaps are priority queues that bypass information-theoretic lower bounds by allowing a certain proportion of elements to become 'corrupted' in a carefully defined way.  The easiest way to define an interface for soft heaps is probably as follows.  Fix some $0 < \epsilon < 1$.  A soft heap supports the following operations:
+\begin{itemize}
+\item Insert an element into the soft heap, in amortized $O(\log(1/\epsilon))$ time.
+\item Delete an element from the soft heap that is ``nearly'' the minimum element of the heap, in amortized $O(\log(1/\epsilon))$ time.  If the element deleted is $x$, it is guaranteed that $x$ is less than at least $(1-\epsilon) n$ of the current elements of the soft heap.  For brevity, we abuse notation by referring to this operation as delete-min.
+\item Iterate over all of the elements of the soft heap in some unspecified order, in $O(n)$ time.
+\end{itemize}
+An implementation of such a data structure can be found in \cite{KZ09}, but we will not concern ourselves with the implementation.
+
+When they were invented in \cite{Ch00}, it was noted that soft heaps could be used to deterministically guarantee good pivot selection in $O(n)$ time, for quicksort as well as quickselect, as follows.  Set $\epsilon = 1/3$, and add every element of the collection to a soft heap.  Delete $n/3$ elements from the soft heap, and let $\alpha$ be the largest of the deleted elements.  Since $\alpha$ was deleted, we know that $\alpha$ is less than at least $n/3$ elements which are still in the soft heap.  Furthermore, $\alpha$ is greater than each of the other $n/3$ elements that were deleted.  Therefore, the rank of $\alpha$ is between $n/3$ and $2n/3$.  Partitioning around $\alpha$ in quickselect, we only have to recurse into a subcollection of size at most $2n/3$, so we can narrow the collection down to the $k$ largest elements in time proportional to $n + 2n/3 + (2/3)^2 n + \cdots = n \sum_{i=0}^\infty (2/3)^i = O(n)$.  However, this algorithm still requires the entire collection to be stored in memory, and performs multiple passes.
+
+Here, then,/ is the advertised algorithm.
+
+\begin{algorithm}[H]
+\SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
+\SetKwData{Heap}{heap}\SetKwFunction{NewSoftHeap}{NewSoftHeap}
+\SetKwFunction{Insert}{insert}\SetKwFunction{DeleteMin}{delete-min}\SetKwFunction{Size}{size}
+\SetKwFunction{QuickSelect}{quick-select}\SetKwFunction{ToArray}{to-array}
+\Input{A collection $X$ of size $n$, which can only be iterated over once, and an integer $0 \le k \le n$}
+\Output{The $k$ largest elements of $X$}
+$\alpha \leftarrow -\infty$\;
+\Heap$\leftarrow$\NewSoftHeap{$\epsilon = 1/2$}\;
+\ForEach{$x \in X$}{
+	\If{$x > \alpha$}{
+		\Heap.\Insert{x}\;
+		\If{\Size{\Heap}$>2k$}{$\alpha \leftarrow \max(\alpha, \DeleteMin{heap})$\;}
+	}
+}
+\Return{\QuickSelect{\ToArray{\Heap},$k$}}\;
+\end{algorithm}
+
+The runtime of this algorithm is $O(n \log(1/\epsilon)) + O(k) = O(n)$, and it clearly uses only $O(k)$ auxiliary memory.  We must show its correctness, however.
+
+\begin{lemma}
+The rank of $\alpha$ in $X$ is always strictly less than $n-k$.
+\end{lemma}
+\begin{proof}
+When $\alpha$ was first assigned to its current value, the size of the soft heap was $2k+1$, and $\alpha$ was the element deleted from the soft heap.  By the definition of delete-min, $\alpha$ was less than at least $\epsilon \cdot 2k = k$ of the other elements of the heap at the time.
+\end{proof}
+\begin{theorem}
+After we have finished iterating over $X$, the soft heap contains each of the $k$ largest elements of $X$.
+\end{theorem}
+\begin{proof}
+By the lemma, we will never skip over any of the $k$ largest elements, since we skip over only elements which have rank less than $\alpha$.  Furthermore, if any of the $k$ largest elements were deleted, they would be assigned to $\alpha$, which contradicts the lemma.
+\end{proof}
+
+Therefore, the pass with the soft heap eliminates all but $2k$ candidates for the $k$ largest elements of $X$, after which quickselect takes $O(k)$.
+\bibliographystyle{plain}
+\bibliography{softselect}
+\end{document}
