@@ -3,6 +3,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ForwardingQueue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 import java.util.Arrays;
@@ -81,13 +82,51 @@ public final class Select {
     }
   }
 
+  private static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
+      List<E> list, int k) {
+    quickSelect(comparator, list, k);
+    list = list.subList(Math.max(0, list.size() - k), list.size());
+    @SuppressWarnings("unchecked")
+    E[] topK = (E[]) list.toArray();
+    Arrays.sort(topK, comparator);
+    return Collections.unmodifiableList(Arrays.asList(topK));
+  }
+
+  private static <E> void quickSelect(Comparator<? super E> comparator,
+      List<E> list, int k) {
+    int n = list.size();
+    int pivotIndex = n / 2;
+    int i = partition(comparator, list, pivotIndex);
+    List<E> leftHalf = list.subList(0, i);
+    List<E> rightHalf = list.subList(i, list.size());
+    if (rightHalf.size() < k) {
+      quickSelect(comparator, leftHalf, k - rightHalf.size());
+    } else if (rightHalf.size() > k) {
+      quickSelect(comparator, list.subList(i + 1, list.size()), k);
+    }
+  }
+
+  private static <E> int partition(Comparator<? super E> comparator,
+      List<E> list, int pivotIndex) {
+    int left = 0;
+    int right = list.size() - 1;
+    E pivotValue = list.get(pivotIndex);
+    E tmp = list.get(right);
+    list.set(right, pivotValue);
+    list.set(pivotIndex, tmp);
+    int storeIndex = left;
+    for (int i = left; i < right; i++) {
+      if (comparator.compare(list.get(i), pivotValue) <= 0) {
+        Collections.swap(list, i, storeIndex++);
+      }
+    }
+    Collections.swap(list, storeIndex, right);
+    return storeIndex;
+  }
+
   public static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
       final Iterator<E> iterator, int k) {
-    return Ordering.from(comparator).greatestOf(new Iterable<E>() {
-      @Override public Iterator<E> iterator() {
-        return iterator;
-      }
-    }, k);
+    return greatestKQuick(comparator, Lists.newArrayList(iterator), k);
   }
 
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,

@@ -167,7 +167,7 @@ public final class SoftHeap<E> {
     }
 
     private int targetSize() {
-      return (rank < R) ? 1 : SIZE_TABLE[rank - R];
+      return SIZE_TABLE[rank];
     }
 
     public void addAllTo(Collection<? super E> collection) {
@@ -243,8 +243,10 @@ public final class SoftHeap<E> {
   private static final int[] SIZE_TABLE = new int[31];
 
   static {
-    SIZE_TABLE[0] = 1;
-    for (int i = 1; i < SIZE_TABLE.length; i++) {
+    for (int i = 0; i <= R; i++) {
+      SIZE_TABLE[i] = 0;
+    }
+    for (int i = R + 1; i < SIZE_TABLE.length; i++) {
       SIZE_TABLE[i] = (3 * SIZE_TABLE[i - 1] + 1) / 2;
     }
   }

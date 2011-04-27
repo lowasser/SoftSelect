@@ -20,7 +20,10 @@ public class SelectTests extends TestCase {
         .asList(elems).iterator(), k);
       List<Integer> selectSoft = Select.greatestKSoft(Ordering.natural(), Ints
         .asList(elems).iterator(), k);
+      List<Integer> selectQuick = Select.greatestKQuick(Ordering.natural(),
+          Ints.asList(elems).iterator(), k);
       assertEquals(selectHeap, selectSoft);
+      assertEquals(selectQuick, selectSoft);
     }
   }
 }
