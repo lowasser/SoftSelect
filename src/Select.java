@@ -88,13 +88,16 @@ public final class Select {
     list = list.subList(Math.max(0, list.size() - k), list.size());
     @SuppressWarnings("unchecked")
     E[] topK = (E[]) list.toArray();
-    Arrays.sort(topK, comparator);
+    Arrays.sort(topK, Ordering.from(comparator).reverse());
     return Collections.unmodifiableList(Arrays.asList(topK));
   }
 
   private static <E> void quickSelect(Comparator<? super E> comparator,
       List<E> list, int k) {
     int n = list.size();
+    if (k == 0 || k >= n) {
+      return;
+    }
     int pivotIndex = n / 2;
     int i = partition(comparator, list, pivotIndex);
     List<E> leftHalf = list.subList(0, i);
