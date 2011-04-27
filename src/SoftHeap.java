@@ -1,6 +1,5 @@
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Ordering;
 
 import java.util.AbstractCollection;
@@ -353,20 +352,6 @@ public final class SoftHeap<E> {
 
   public boolean isEmpty() {
     return first == null;
-  }
-
-  /**
-   * Deletes an element from the heap. The element returned will be the element
-   * with the smallest current key, but the current key of an element may be
-   * greater than the element. If the heap is empty, throws a
-   * {@link NoSuchElementException}.
-   */
-
-  public Optional<E> peekKey() {
-    if (isEmpty()) {
-      return Optional.absent();
-    }
-    return Optional.of(first.getSuffixMin().root.ckey);
   }
 
   public int size() {
