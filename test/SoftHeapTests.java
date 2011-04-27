@@ -1,8 +1,7 @@
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -76,10 +75,9 @@ public class SoftHeapTests extends TestCase {
       return true;
     int alpha = heap.extractMin();
     int greater = 0;
-    List<Integer> elems = Lists.newArrayList(heap.size());
-    heap.addAllTo(elems);
-    for (Integer i : elems) {
-      if (i > alpha) {
+    List<?> elems = Arrays.asList(heap.toArray());
+    for (Object i : elems) {
+      if ((Integer) i > alpha) {
         greater++;
       }
     }
