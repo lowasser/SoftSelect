@@ -103,8 +103,6 @@ public final class SoftHeap<E> {
     public Linked<T> next();
   }
 
-  private int siftCompares = 0;
-
   private final class Node {
     @Nullable private E ckey = null;
     @Nullable private Node left = null;
@@ -156,8 +154,7 @@ public final class SoftHeap<E> {
 
     void sift() {
       while (list.size() < targetSize() && !isLeaf()) {
-        if (!hasLeft()
-            || (hasRight() && compare(left.ckey, right.ckey) > 0 && (siftCompares++ >= 0))) {
+        if (hasRight() && compare(left.ckey, right.ckey) > 0) {
           Node tmp = left;
           left = right;
           right = tmp;
@@ -223,7 +220,6 @@ public final class SoftHeap<E> {
         sufMin = this;
         if (hasNext()) {
           sufMin = Ordering.natural().min(sufMin, next.getSuffixMin());
-          suffixMinCompares++;
         }
         suffixMin = sufMin;
       }
@@ -369,10 +365,7 @@ public final class SoftHeap<E> {
     return elements;
   }
 
-  private int totalCompares = 0;
-
   private int compare(E a, E b) {
-    totalCompares++;
     return comparator.compare(a, b);
   }
 
@@ -388,19 +381,15 @@ public final class SoftHeap<E> {
     t.root = null;
   }
 
-  int suffixMinCompares = 0;
-
   private void updateSuffixMin(Tree t) {
     Tree tmpmin = t;
     if (t.hasNext()) {
-      suffixMinCompares++;
       tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
     }
     t.suffixMin = tmpmin;
     while (t.prev != null) {
       t = t.prev;
       tmpmin = Ordering.natural().min(t, tmpmin);
-      suffixMinCompares++;
       t.suffixMin = tmpmin;
     }
   }
