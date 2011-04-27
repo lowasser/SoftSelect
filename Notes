@@ -1,1 +1,15 @@
+Traditionally, to select the largest k elements from a collection, there are two
+algorithms: quickselect, and heapselect.
+
+Quickselect requires that we store the entire collection in memory, but takes
+O(n + k log k) time and comparisons.
+Heapselect only uses O(k) memory, and only requires a single pass over the
+collection.  However, it uses O(n log k) time.
+
+While there is a standard algorithm for selection using soft heaps, it is
+essentially the same as quickselect.  I have a different algorithm, possibly
+new, which only requires a single pass over the collection and O(k) memory,
+but uses O(n + k log k) time.  I believe it may be the first algorithm to
+accomplish these goals.
+
 It appears that soft-select wins over heap-select for k>=130.
