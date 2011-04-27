@@ -4,6 +4,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Ordering;
 
 import java.util.AbstractCollection;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -133,19 +134,6 @@ public final class SoftHeap<E> {
       sift();
     }
 
-    public int echoTo(Object[] buffer, int i) {
-      for (E e : list) {
-        buffer[i++] = e;
-      }
-      if (hasLeft()) {
-        i = left.echoTo(buffer, i);
-      }
-      if (hasRight()) {
-        i = right.echoTo(buffer, i);
-      }
-      return i;
-    }
-
     boolean hasLeft() {
       return left != null;
     }
@@ -180,6 +168,16 @@ public final class SoftHeap<E> {
 
     private int targetSize() {
       return (rank < R) ? 1 : SIZE_TABLE[rank - R];
+    }
+
+    public void addAllTo(Collection<? super E> collection) {
+      collection.addAll(list);
+      if (hasLeft()) {
+        left.addAllTo(collection);
+      }
+      if (hasRight()) {
+        right.addAllTo(collection);
+      }
     }
   }
 
@@ -372,15 +370,11 @@ public final class SoftHeap<E> {
     return size;
   }
 
-  public Object[] toArray() {
-    Object[] elements = new Object[size()];
+  public void addAllTo(Collection<? super E> collection) {
     Iterator<Node> rootIter = linkedIterator(first);
-    int i = 0;
     while (rootIter.hasNext()) {
-      i = rootIter.next().echoTo(elements, i);
+      rootIter.next().addAllTo(collection);
     }
-    assert i == elements.length;
-    return elements;
   }
 
   private int totalCompares = 0;
