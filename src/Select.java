@@ -160,14 +160,8 @@ public final class Select {
             }
           }
         }
-        Queue<E> topKHeap = new BoundedPriorityQueue<E>(comparator, k);
-        heap.addAllTo(topKHeap);
-        @SuppressWarnings("unchecked")
-        E[] topK = (E[]) new Object[topKHeap.size()];
-        for (int i = topK.length - 1; !topKHeap.isEmpty(); i--) {
-          topK[i] = topKHeap.remove();
-        }
-        return Collections.unmodifiableList(Arrays.asList(topK));
+        E[] top2K = (E[]) heap.toArray();
+        return greatestKQuick(comparator, Arrays.asList(top2K), k);
     }
   }
 }

@@ -22,8 +22,8 @@ public class SelectTests extends TestCase {
         .asList(elems).iterator(), k);
       List<Integer> selectQuick = Select.greatestKQuick(Ordering.natural(),
           Ints.asList(elems).iterator(), k);
-      assertEquals(selectHeap, selectSoft);
       assertEquals(selectQuick, selectSoft);
+      assertEquals(selectHeap, selectSoft);
     }
   }
 }
