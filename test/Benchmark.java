@@ -22,7 +22,7 @@ public class Benchmark {
 
   public static void main(String[] args) {
     Random random = new Random(0);
-    int n = 100000;
+    int n = 10000;
     int[] elems = new int[n];
     for (int i = 0; i < n; i++) {
       elems[i] = random.nextInt();
@@ -36,8 +36,12 @@ public class Benchmark {
     Select.greatestKSoft(comparator, list.iterator(), k);
     int softComps = comparator.comparisonsMade;
     comparator.reset();
+    Select.greatestKQuick(comparator, list.iterator(), k);
+    int quickComps = comparator.comparisonsMade;
+    comparator.reset();
     System.out.println("Soft comparisons: " + softComps);
     System.out.println("Heap comparisons: " + heapComps);
+    System.out.println("Quick comparisons: " + quickComps);
     long startTime = System.currentTimeMillis();
     for (int z = 0; z < 10; z++) {
       Select.greatestKSoft(comparator, list.iterator(), k);
@@ -50,5 +54,11 @@ public class Benchmark {
     }
     long heapTime = System.currentTimeMillis() - startTime;
     System.out.println("Heap time: " + heapTime);
+    startTime = System.currentTimeMillis();
+    for (int z = 0; z < 10; z++) {
+      Select.greatestKQuick(comparator, list.iterator(), k);
+    }
+    long quickTime = System.currentTimeMillis() - startTime;
+    System.out.println("Quick time: " + quickTime);
   }
 }

@@ -1,0 +1,1 @@
+It appears that soft-select wins over heap-select for k>=130.

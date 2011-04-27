@@ -47,6 +47,15 @@ public final class Select {
     }
   }
 
+  public static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
+      final Iterator<E> iterator, int k) {
+    return Ordering.from(comparator).greatestOf(new Iterable<E>() {
+      @Override public Iterator<E> iterator() {
+        return iterator;
+      }
+    }, k);
+  }
+
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
