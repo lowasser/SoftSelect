@@ -351,7 +351,6 @@ public final class SoftHeap<E> {
   }
 
   public Object[] toArray() {
-    @SuppressWarnings("unchecked")
     Object[] elements = new Object[size()];
     Iterator<Node> rootIter = linkedIterator(first);
     int i = 0;

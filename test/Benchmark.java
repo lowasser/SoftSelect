@@ -22,12 +22,12 @@ public class Benchmark {
 
   public static void main(String[] args) {
     Random random = new Random(0);
-    int n = 1000000;
+    int n = 100000;
     int[] elems = new int[n];
     for (int i = 0; i < n; i++) {
       elems[i] = random.nextInt();
     }
-    int k = 1000;
+    int k = 130;
     List<Integer> list = Collections.unmodifiableList(Ints.asList(elems));
     CountingComparator comparator = new CountingComparator();
     Select.greatestKHeap(comparator, list.iterator(), k);
