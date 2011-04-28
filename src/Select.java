@@ -55,30 +55,17 @@ public final class Select {
   public static <E> List<E> greatestKHeap(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
-    Ordering<? super E> ordering = Ordering.from(comparator);
-    switch (k) {
-      case 0:
-        return ImmutableList.of();
-      case 1:
-        if (!iterator.hasNext())
-          return ImmutableList.of();
-        E max = iterator.next();
-        while (iterator.hasNext()) {
-          max = ordering.max(max, iterator.next());
-        }
-        return Collections.singletonList(max);
-      default:
-        Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
-        while (iterator.hasNext()) {
-          heap.offer(iterator.next());
-        }
-        @SuppressWarnings("unchecked")
-        E[] topK = (E[]) new Object[heap.size()];
-        for (int i = topK.length - 1; !heap.isEmpty(); i--) {
-          topK[i] = heap.remove();
-        }
-        return Collections.unmodifiableList(Arrays.asList(topK));
+    checkArgument(k > 0);
+    Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
+    while (iterator.hasNext()) {
+      heap.offer(iterator.next());
     }
+    @SuppressWarnings("unchecked")
+    E[] topK = (E[]) new Object[heap.size()];
+    for (int i = topK.length - 1; !heap.isEmpty(); i--) {
+      topK[i] = heap.remove();
+    }
+    return Collections.unmodifiableList(Arrays.asList(topK));
   }
 
   private static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
@@ -98,37 +85,26 @@ public final class Select {
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
-    Ordering<? super E> ordering = Ordering.from(comparator);
-    switch (k) {
-      case 0:
-        return ImmutableList.of();
-      case 1:
-        if (!iterator.hasNext())
-          return ImmutableList.of();
-        E max = iterator.next();
-        while (iterator.hasNext()) {
-          max = ordering.max(max, iterator.next());
-        }
-        return Collections.singletonList(max);
-      default:
-        SoftHeap<E> heap = new SoftHeap<E>(comparator);
-        while (iterator.hasNext() && heap.size() < 2 * k) {
-          heap.add(iterator.next());
-        }
-        int alphaCompares = 0;
-        if (iterator.hasNext()) {
-          while (iterator.hasNext()) {
-            E elem = iterator.next();
-            alphaCompares++;
-            if (comparator.compare(heap.peekMin(), elem) < 0) {
-              heap.extractMin();
-              heap.add(elem);
-            }
-          }
-        }
-        @SuppressWarnings("unchecked")
-        E[] top2K = (E[]) heap.toArray();
-        return greatestKQuick(comparator, Arrays.asList(top2K), k);
+    checkArgument(k >= 0);
+    SoftHeap<E> heap = new SoftHeap<E>(comparator);
+    while (iterator.hasNext() && heap.size() < 2 * k) {
+      heap.add(iterator.next());
     }
+    int alphaCompares = 0;
+    if (iterator.hasNext()) {
+      E alpha = heap.peekMin();
+      while (iterator.hasNext()) {
+        E elem = iterator.next();
+        alphaCompares++;
+        if (comparator.compare(alpha, elem) < 0) {
+          heap.extractMin();
+          heap.add(elem);
+          alpha = heap.peekMin();
+        }
+      }
+    }
+    @SuppressWarnings("unchecked")
+    E[] top2K = (E[]) heap.toArray();
+    return greatestKQuick(comparator, Arrays.asList(top2K), k);
   }
 }

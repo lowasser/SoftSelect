@@ -214,16 +214,13 @@ public final class SoftHeap<E> {
       return root.rank;
     }
 
+    private Tree updateSuffixMin() {
+      return suffixMin = hasNext() ? Ordering.natural().min(this,
+          next.getSuffixMin()) : this;
+    }
+
     private Tree getSuffixMin() {
-      Tree sufMin = suffixMin;
-      if (sufMin.root == null) {
-        sufMin = this;
-        if (hasNext()) {
-          sufMin = Ordering.natural().min(sufMin, next.getSuffixMin());
-        }
-        suffixMin = sufMin;
-      }
-      return sufMin;
+      return (suffixMin.root == null) ? updateSuffixMin() : suffixMin;
     }
   }
 
@@ -292,17 +289,21 @@ public final class SoftHeap<E> {
       t2.prev = t1;
       Tree lastChanged = t1;
       do {
-        if (t1.rank() == t1.next.rank()) {
-          if (!t1.next.hasNext() || t1.rank() != t1.next.next.rank()) {
-            E t2Root = t1.next.root.ckey;
-            t1.root = new Node(t1.root, t1.next.root);
+        t2 = t1.next;
+        if (t1.rank() == t2.rank()) {
+          if (!t2.hasNext() || t1.rank() != t2.next.rank()) {
+            E t2Root = t2.root.ckey;
+            t1.root = new Node(t1.root, t2.root);
             if (t1.root.ckey == t2Root) {
-              t1.suffixMin = t1.next.suffixMin;
+              t1.suffixMin = t2.suffixMin;
             } else {
               lastChanged = t1;
             }
-            removeTree(t1.next);
-            if (!t1.hasNext()) {
+            t1.next = t2.next;
+            t2.root = null;
+            if (t2.hasNext()) {
+              t2.next.prev = t1;
+            } else {
               break;
             }
           }
@@ -382,15 +383,7 @@ public final class SoftHeap<E> {
   }
 
   private void updateSuffixMin(Tree t) {
-    Tree tmpmin = t;
-    if (t.hasNext()) {
-      tmpmin = Ordering.natural().min(t, t.next().getSuffixMin());
-    }
-    t.suffixMin = tmpmin;
-    while (t.prev != null) {
-      t = t.prev;
-      tmpmin = Ordering.natural().min(t, tmpmin);
-      t.suffixMin = tmpmin;
-    }
+    for (; t != null; t = t.prev)
+      t.updateSuffixMin();
   }
 }
