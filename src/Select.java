@@ -2,7 +2,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ForwardingQueue;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
 import java.util.Arrays;
@@ -57,9 +56,13 @@ public final class Select {
     checkNotNull(comparator);
     checkArgument(k > 0);
     Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
+    int nSkipped = 0;
     while (iterator.hasNext()) {
-      heap.offer(iterator.next());
+      if (!heap.offer(iterator.next())) {
+        nSkipped++;
+      }
     }
+    System.err.println("Completely skipped (H): " + nSkipped);
     @SuppressWarnings("unchecked")
     E[] topK = (E[]) new Object[heap.size()];
     for (int i = topK.length - 1; !heap.isEmpty(); i--) {
@@ -87,22 +90,29 @@ public final class Select {
     checkNotNull(comparator);
     checkArgument(k >= 0);
     SoftHeap<E> heap = new SoftHeap<E>(comparator);
+    int n = 0;
     while (iterator.hasNext() && heap.size() < 2 * k) {
       heap.add(iterator.next());
+      n++;
     }
     int alphaCompares = 0;
+    int nSkipped = 0;
     if (iterator.hasNext()) {
       E alpha = heap.peekMin();
       while (iterator.hasNext()) {
         E elem = iterator.next();
+        n++;
         alphaCompares++;
         if (comparator.compare(alpha, elem) < 0) {
           heap.extractMin();
           heap.add(elem);
           alpha = heap.peekMin();
+        } else {
+          nSkipped++;
         }
       }
     }
+    System.err.println("Completely skipped (S): " + nSkipped);
     @SuppressWarnings("unchecked")
     E[] top2K = (E[]) heap.toArray();
     return greatestKQuick(comparator, Arrays.asList(top2K), k);

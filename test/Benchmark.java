@@ -1,9 +1,6 @@
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Ordering;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
@@ -22,63 +19,60 @@ public class Benchmark {
       comparisonsMade++;
       return comparator.compare(o1, o2);
     }
-
-    public void reset() {
-      comparisonsMade = 0;
-    }
   }
 
-  private static final class ByteArray implements Comparable<ByteArray> {
-    private final byte[] array;
+  private static int
+      countComparisonsSoft(List<? extends Comparable> list, int k) {
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
+    Select.greatestKSoft(comparator, list.iterator(), k);
+    return comparator.comparisonsMade;
+  }
 
-    private ByteArray(Random random) {
-      this.array = new byte[random.nextInt(100)];
-      random.nextBytes(array);
+  private static int
+      countComparisonsHeap(List<? extends Comparable> list, int k) {
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
+    Select.greatestKHeap(comparator, list.iterator(), k);
+    return comparator.comparisonsMade;
+  }
+
+  private static int countComparisonsQuick(List<? extends Comparable> list,
+      int k) {
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
+    Select.greatestKQuick(comparator, list.iterator(), k);
+    return comparator.comparisonsMade;
+  }
+
+  private static <T> void
+      mostlySort(T[] elems, Comparator<? super T> comparator) {
+    SoftHeap<T> heap = new SoftHeap<T>(comparator);
+    for (T t : elems) {
+      heap.add(t);
     }
-
-    @Override public boolean equals(Object obj) {
-      if (obj instanceof ByteArray) {
-        return Arrays.equals(array, ((ByteArray) obj).array);
-      }
-      return false;
-    }
-
-    @Override public int compareTo(ByteArray o) {
-      checkNotNull(o);
-      int m = Math.min(array.length, o.array.length);
-      for (int i = 0; i < m; i++) {
-        int x = array[i] - o.array[i];
-        if (x != 0) {
-          return x;
-        }
-      }
-      return array.length - o.array.length;
+    for (int i = 0; i < elems.length; i++) {
+      elems[i] = heap.extractMin();
     }
   }
 
   public static void main(String[] args) {
     Random random = new Random(100);
     int n = 1000000;
-    ByteArray[] elems = new ByteArray[n];
+    Integer[] elems = new Integer[n];
     for (int i = 0; i < n; i++) {
-      elems[i] = new ByteArray(random);
+      elems[i] = random.nextInt();
     }
+    List<? extends Comparable> list = Arrays.asList(elems);
+    // Collections.reverse(list);
+    for (int k = 100; k <= 1000; k += 100) {
+      System.out.println("k = " + k + "; n = " + n);
+      System.out.println("Soft compares:\t" + countComparisonsSoft(list, k));
+      System.out.println("Heap compares:\t" + countComparisonsHeap(list, k));
+      System.out.println("Quick compares:\t" + countComparisonsQuick(list, k));
+    }
+    Comparator<Comparable> comparator = Ordering.natural();
     int k = 100;
-    List<ByteArray> list = Collections.unmodifiableList(Arrays.asList(elems));
-    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
-        Ordering.natural());
-    Select.greatestKHeap(comparator, list.iterator(), k);
-    int heapComps = comparator.comparisonsMade;
-    comparator.reset();
-    Select.greatestKSoft(comparator, list.iterator(), k);
-    int softComps = comparator.comparisonsMade;
-    comparator.reset();
-    Select.greatestKQuick(comparator, list.iterator(), k);
-    int quickComps = comparator.comparisonsMade;
-    comparator.reset();
-    System.out.println("Soft comparisons: " + softComps);
-    System.out.println("Heap comparisons: " + heapComps);
-    System.out.println("Quick comparisons: " + quickComps);
     long startTime = System.currentTimeMillis();
     for (int z = 0; z < 10; z++) {
       Select.greatestKSoft(comparator, list.iterator(), k);
