@@ -1,5 +1,8 @@
-import com.google.common.primitives.Ints;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Ordering;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -7,12 +10,17 @@ import java.util.Random;
 
 public class Benchmark {
 
-  private static final class CountingComparator implements Comparator<Integer> {
+  private static final class CountingComparator<E> implements Comparator<E> {
+    private final Comparator<? super E> comparator;
     private int comparisonsMade = 0;
 
-    @Override public int compare(Integer o1, Integer o2) {
+    private CountingComparator(Comparator<? super E> comparator) {
+      this.comparator = comparator;
+    }
+
+    @Override public int compare(E o1, E o2) {
       comparisonsMade++;
-      return o1 - o2;
+      return comparator.compare(o1, o2);
     }
 
     public void reset() {
@@ -20,16 +28,45 @@ public class Benchmark {
     }
   }
 
-  public static void main(String[] args) {
-    Random random = new Random(0);
-    int n = 1000000;
-    int[] elems = new int[n];
-    for (int i = 0; i < n; i++) {
-      elems[i] = random.nextInt();
+  private static final class ByteArray implements Comparable<ByteArray> {
+    private final byte[] array;
+
+    private ByteArray(Random random) {
+      this.array = new byte[random.nextInt(100)];
+      random.nextBytes(array);
     }
-    int k = 1000;
-    List<Integer> list = Collections.unmodifiableList(Ints.asList(elems));
-    CountingComparator comparator = new CountingComparator();
+
+    @Override public boolean equals(Object obj) {
+      if (obj instanceof ByteArray) {
+        return Arrays.equals(array, ((ByteArray) obj).array);
+      }
+      return false;
+    }
+
+    @Override public int compareTo(ByteArray o) {
+      checkNotNull(o);
+      int m = Math.min(array.length, o.array.length);
+      for (int i = 0; i < m; i++) {
+        int x = array[i] - o.array[i];
+        if (x != 0) {
+          return x;
+        }
+      }
+      return array.length - o.array.length;
+    }
+  }
+
+  public static void main(String[] args) {
+    Random random = new Random(100);
+    int n = 1000000;
+    ByteArray[] elems = new ByteArray[n];
+    for (int i = 0; i < n; i++) {
+      elems[i] = new ByteArray(random);
+    }
+    int k = 100;
+    List<ByteArray> list = Collections.unmodifiableList(Arrays.asList(elems));
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
     Select.greatestKHeap(comparator, list.iterator(), k);
     int heapComps = comparator.comparisonsMade;
     comparator.reset();

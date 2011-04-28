@@ -82,8 +82,8 @@ public final class Select {
   }
 
   private static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
-      Iterable<E> list, int k) {
-    return Ordering.from(comparator).greatestOf(list, k);
+      Iterable<E> elements, int k) {
+    return Ordering.from(comparator).greatestOf(elements, k);
   }
 
   public static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
