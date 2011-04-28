@@ -1,6 +1,7 @@
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -10,11 +11,11 @@ public class SelectTests extends TestCase {
   public void testSelect() {
     Random random = new Random(0);
     for (int z = 1; z <= 1000; z++) {
-      int n = random.nextInt(100000);
-      int k = random.nextInt(1000);
+      int n = random.nextInt(z);
+      int k = random.nextInt(n + 1);
       int[] elems = new int[n];
       for (int i = 0; i < n; i++) {
-        elems[i] = random.nextInt();
+        elems[i] = random.nextInt(n);
       }
       List<Integer> selectHeap = Select.greatestKHeap(Ordering.natural(), Ints
         .asList(elems).iterator(), k);
@@ -22,6 +23,10 @@ public class SelectTests extends TestCase {
         .asList(elems).iterator(), k);
       List<Integer> selectQuick = Select.greatestKQuick(Ordering.natural(),
           Ints.asList(elems).iterator(), k);
+      System.err.println(n);
+      System.err.println(Arrays.toString(elems));
+      System.err.println("Heap: " + selectHeap);
+      System.err.println("Soft: " + selectSoft);
       assertEquals(selectHeap, selectSoft);
       assertEquals(selectQuick, selectSoft);
     }

@@ -1,15 +1,13 @@
-Traditionally, to select the largest k elements from a collection, there are two
-algorithms: quickselect, and heapselect.
+Our discussion will assume that we seek the greatest k elements, not the least.
 
-Quickselect requires that we store the entire collection in memory, but takes
-O(n + k log k) time and comparisons.
-Heapselect only uses O(k) memory, and only requires a single pass over the
-collection.  However, it uses O(n log k) time.
+In both heapselect and softselect, we always have a "cutoff point," and can immediately discard any elements below this cutoff point.  In both cases, the
+current minimum element of the heap represents this cutoff point.  As a result, if the data is not mostly in ascending order, heapselect and softselect can both almost immediately start discarding almost every element.  On random data, they both converge geometrically on the perfect cutoff point.  Experimentation indicates that on random data, heapselect and softselect both do approximately n+10k comparisons for k much smaller than n, with softselect doing somewhat fewer comparisons than heapselect.
 
-While there is a standard algorithm for selection using soft heaps, it is
-essentially the same as quickselect.  I have a different algorithm, possibly
-new, which only requires a single pass over the collection and O(k) memory,
-but uses O(n + k log k) time.  I believe it may be the first algorithm to
-accomplish these goals.
+In comparison, quickselect does 2n comparisons if it hits the median every time. This is borne out by the data: on random inputs, quickselect does approximately twice as many comparisons as softselect or heapselect.  Moreover, a single bad pivot choice at the very beginning can double the total number of comparisons, if we have to traverse nearly the whole collection twice.
 
-It appears that soft-select wins over heap-select for k>=130.
+The worst case for heapselect and softselect is input in ascending order, in which we can never skip any elements.  This is guaranteed to bring out the full O(n log k) cost for heapselect, however, while softselect's O(n + k log k) works to its advantage.  Quickselect, as written for Guava, does relatively well in this case, because it always chooses the middle element, which is always the median.  Experimentation shows that
+* quickselect makes almost exactly 2n comparisons,
+* heapselect makes almost exactly 2n log_2(k) comparisons,
+* softselect makes between 5.5n and 6.5n comparisons.
+
+If comparisons are cheap, heapselect can still beat softselect on time, even on ascending data, but never on comparisons.

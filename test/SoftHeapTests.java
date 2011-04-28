@@ -77,7 +77,7 @@ public class SoftHeapTests extends TestCase {
     int greater = 0;
     List<?> elems = Arrays.asList(heap.toArray());
     for (Object i : elems) {
-      if ((Integer) i > alpha) {
+      if ((Integer) i >= alpha) {
         greater++;
       }
     }
@@ -86,7 +86,7 @@ public class SoftHeapTests extends TestCase {
 
   public void testSoftHeap() {
     for (int z = 1; z <= 1000; z++) {
-      int n = random.nextInt(200);
+      int n = random.nextInt(z);
       int[] elems = new int[n];
       for (int i = 0; i < n; i++) {
         elems[i] = random.nextInt(n * 2);

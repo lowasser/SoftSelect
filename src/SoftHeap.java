@@ -276,7 +276,7 @@ public final class SoftHeap<E> {
   SoftHeap(Comparator<? super E> comparator) {
     this.comparator = checkNotNull(comparator);
   }
-  
+
   public boolean add(E elem) {
     if (isEmpty()) {
       first = new Tree(elem);

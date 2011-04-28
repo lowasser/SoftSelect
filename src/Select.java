@@ -2,8 +2,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ForwardingQueue;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.PeekingIterator;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -54,7 +58,10 @@ public final class Select {
   public static <E> List<E> greatestKHeap(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
-    checkArgument(k > 0);
+    checkArgument(k >= 0);
+    if (k == 0) {
+      return ImmutableList.of();
+    }
     Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
     int nSkipped = 0;
     while (iterator.hasNext()) {
@@ -62,7 +69,6 @@ public final class Select {
         nSkipped++;
       }
     }
-    System.err.println("Completely skipped (H): " + nSkipped);
     @SuppressWarnings("unchecked")
     E[] topK = (E[]) new Object[heap.size()];
     for (int i = topK.length - 1; !heap.isEmpty(); i--) {
@@ -85,34 +91,76 @@ public final class Select {
     }, k);
   }
 
+  private static final class BoundedDeque<E> extends ForwardingQueue<E> {
+    private final int capacity;
+    private final Queue<E> backing;
+
+    private BoundedDeque(int capacity) {
+      this.capacity = capacity;
+      backing = new ArrayDeque<E>(capacity);
+    }
+
+    @Override protected Queue<E> delegate() {
+      return backing;
+    }
+
+    @Override public boolean offer(E o) {
+      if (size() == capacity) {
+        poll();
+      }
+      return super.offer(o);
+    }
+  }
+
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
+    /*
+     * TODO: optimize for increasing input.  Possibly specialize on increasing
+     * runs a la timsort.
+     */
     checkNotNull(comparator);
     checkArgument(k >= 0);
+    if (k == 0)
+      return ImmutableList.of();
+    PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
     SoftHeap<E> heap = new SoftHeap<E>(comparator);
-    int n = 0;
-    while (iterator.hasNext() && heap.size() < 2 * k) {
-      heap.add(iterator.next());
-      n++;
+    while (iter.hasNext() && heap.size() < 2 * k) {
+      heap.add(iter.next());
     }
-    int alphaCompares = 0;
-    int nSkipped = 0;
-    if (iterator.hasNext()) {
-      E alpha = heap.peekMin();
-      while (iterator.hasNext()) {
-        E elem = iterator.next();
-        n++;
-        alphaCompares++;
-        if (comparator.compare(alpha, elem) < 0) {
+
+    if (iter.hasNext()) {
+      BoundedDeque<E> run = new BoundedDeque<E>(k);
+
+      runLoop : while (iter.hasNext()) {
+        int count = 0;
+        while (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
+          iter.next();
+          if (!iter.hasNext()) {
+            break runLoop;
+          }
+        }
+        E current = iter.next();
+        run.offer(current);
+        count++;
+
+        while (iter.hasNext()) {
+          if (comparator.compare(current, iter.peek()) > 0) {
+            if (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
+              iter.next();
+              continue;
+            } else {
+              break;
+            }
+          }
+          run.offer(current = iter.next());
+          count++;
+        }
+        while (!run.isEmpty()) {
+          heap.add(run.poll());
           heap.extractMin();
-          heap.add(elem);
-          alpha = heap.peekMin();
-        } else {
-          nSkipped++;
         }
       }
     }
-    System.err.println("Completely skipped (S): " + nSkipped);
     @SuppressWarnings("unchecked")
     E[] top2K = (E[]) heap.toArray();
     return greatestKQuick(comparator, Arrays.asList(top2K), k);

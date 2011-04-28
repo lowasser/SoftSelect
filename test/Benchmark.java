@@ -1,13 +1,19 @@
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
 public class Benchmark {
 
-  private static final class CountingComparator<E> implements Comparator<E> {
+  private static final class CountingComparator<E> extends Ordering<E> {
     private final Comparator<? super E> comparator;
     private int comparisonsMade = 0;
 
@@ -21,55 +27,88 @@ public class Benchmark {
     }
   }
 
-  private static int
-      countComparisonsSoft(List<? extends Comparable> list, int k) {
-    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
-        Ordering.natural());
-    Select.greatestKSoft(comparator, list.iterator(), k);
-    return comparator.comparisonsMade;
-  }
-
-  private static int
-      countComparisonsHeap(List<? extends Comparable> list, int k) {
-    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
-        Ordering.natural());
-    Select.greatestKHeap(comparator, list.iterator(), k);
-    return comparator.comparisonsMade;
-  }
-
-  private static int countComparisonsQuick(List<? extends Comparable> list,
+  private static int countComparisonsSoft(Iterator<? extends Comparable> iter,
       int k) {
     CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
         Ordering.natural());
-    Select.greatestKQuick(comparator, list.iterator(), k);
+    Select.greatestKSoft(comparator, iter, k);
     return comparator.comparisonsMade;
   }
 
-  private static <T> void
-      mostlySort(T[] elems, Comparator<? super T> comparator) {
+  private static int countComparisonsHeap(Iterator<? extends Comparable> iter,
+      int k) {
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
+    Select.greatestKHeap(comparator, iter, k);
+    return comparator.comparisonsMade;
+  }
+
+  private static int countComparisonsQuick(Iterator<? extends Comparable> iter,
+      int k) {
+    CountingComparator<Comparable> comparator = new CountingComparator<Comparable>(
+        Ordering.natural());
+    Select.greatestKQuick(comparator, iter, k);
+    return comparator.comparisonsMade;
+  }
+
+  private static <T> void mostlySort(List<T> elems,
+      Comparator<? super T> comparator) {
     SoftHeap<T> heap = new SoftHeap<T>(comparator);
     for (T t : elems) {
       heap.add(t);
     }
-    for (int i = 0; i < elems.length; i++) {
-      elems[i] = heap.extractMin();
+    for (int i = 0; i < elems.size(); i++) {
+      elems.set(i, heap.extractMin());
     }
   }
 
-  public static void main(String[] args) {
-    Random random = new Random(100);
-    int n = 1000000;
-    Integer[] elems = new Integer[n];
-    for (int i = 0; i < n; i++) {
-      elems[i] = random.nextInt();
+  private static class RandomIterator implements Iterator<Integer> {
+    private final Random random;
+    private long length;
+
+    private RandomIterator(long seed, long length) {
+      random = new Random(seed);
+      this.length = length;
     }
-    List<? extends Comparable> list = Arrays.asList(elems);
+
+    @Override public boolean hasNext() {
+      return length >= 0;
+    }
+
+    @Override public Integer next() {
+      length--;
+      return random.nextInt();
+    }
+
+    @Override public void remove() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  private static Iterator<Integer> newIterator(int n) {
+    return new RandomIterator(598457293, n);
+  }
+
+  public static void main(String[] args) throws IOException {
+    BufferedReader reader = new BufferedReader(new FileReader("dictionary.txt"));
+    List<String> words = Lists.newArrayList();
+    while (reader.ready()) {
+      words.add(reader.readLine());
+    }
+    Random random = new Random(234723);
+    int n = words.size();
+    Collections.shuffle(words, random);
+    mostlySort(words, Ordering.natural());
+    List<? extends Comparable> list = Collections.unmodifiableList(words);
     // Collections.reverse(list);
     for (int k = 100; k <= 1000; k += 100) {
       System.out.println("k = " + k + "; n = " + n);
-      System.out.println("Soft compares:\t" + countComparisonsSoft(list, k));
-      System.out.println("Heap compares:\t" + countComparisonsHeap(list, k));
-      System.out.println("Quick compares:\t" + countComparisonsQuick(list, k));
+      System.out.println("Soft compares:\t"
+          + countComparisonsSoft(list.iterator(), k));
+      System.out.println("Heap compares:\t"
+          + countComparisonsHeap(list.iterator(), k));
+      System.out.println("Quick compares:\t"
+          + countComparisonsQuick(list.iterator(), k));
     }
     Comparator<Comparable> comparator = Ordering.natural();
     int k = 100;
