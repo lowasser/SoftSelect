@@ -3,7 +3,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ForwardingQueue;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 import java.util.Arrays;
@@ -30,13 +29,13 @@ public final class Select {
       this.k = k;
     }
 
-    /**
-     * Kicks out the smallest element if it would make the queue bigger than k.
-     */
     public boolean add(@Nullable E element) {
       return offer(element);
     }
 
+    /**
+     * Kicks out the smallest element if it would make the queue bigger than k.
+     */
     @Override public boolean offer(@Nullable E element) {
       if (queue.size() < k) {
         return super.offer(element);
@@ -83,53 +82,17 @@ public final class Select {
   }
 
   private static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
-      List<E> list, int k) {
-    quickSelect(comparator, list, k);
-    list = list.subList(Math.max(0, list.size() - k), list.size());
-    @SuppressWarnings("unchecked")
-    E[] topK = (E[]) list.toArray();
-    Arrays.sort(topK, Ordering.from(comparator).reverse());
-    return Collections.unmodifiableList(Arrays.asList(topK));
-  }
-
-  private static <E> void quickSelect(Comparator<? super E> comparator,
-      List<E> list, int k) {
-    int n = list.size();
-    if (k == 0 || k >= n) {
-      return;
-    }
-    int pivotIndex = n / 2;
-    int i = partition(comparator, list, pivotIndex);
-    List<E> leftHalf = list.subList(0, i);
-    List<E> rightHalf = list.subList(i, list.size());
-    if (rightHalf.size() < k) {
-      quickSelect(comparator, leftHalf, k - rightHalf.size());
-    } else if (rightHalf.size() > k) {
-      quickSelect(comparator, list.subList(i + 1, list.size()), k);
-    }
-  }
-
-  private static <E> int partition(Comparator<? super E> comparator,
-      List<E> list, int pivotIndex) {
-    int left = 0;
-    int right = list.size() - 1;
-    E pivotValue = list.get(pivotIndex);
-    E tmp = list.get(right);
-    list.set(right, pivotValue);
-    list.set(pivotIndex, tmp);
-    int storeIndex = left;
-    for (int i = left; i < right; i++) {
-      if (comparator.compare(list.get(i), pivotValue) <= 0) {
-        Collections.swap(list, i, storeIndex++);
-      }
-    }
-    Collections.swap(list, storeIndex, right);
-    return storeIndex;
+      Iterable<E> list, int k) {
+    return Ordering.from(comparator).greatestOf(list, k);
   }
 
   public static <E> List<E> greatestKQuick(Comparator<? super E> comparator,
       final Iterator<E> iterator, int k) {
-    return greatestKQuick(comparator, Lists.newArrayList(iterator), k);
+    return greatestKQuick(comparator, new Iterable<E>() {
+      @Override public Iterator<E> iterator() {
+        return iterator;
+      }
+    }, k);
   }
 
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
@@ -163,6 +126,7 @@ public final class Select {
             }
           }
         }
+        @SuppressWarnings("unchecked")
         E[] top2K = (E[]) heap.toArray();
         return greatestKQuick(comparator, Arrays.asList(top2K), k);
     }
