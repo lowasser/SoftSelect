@@ -7,7 +7,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -59,15 +58,11 @@ public final class Select {
       Iterator<E> iterator, int k) {
     checkNotNull(comparator);
     checkArgument(k >= 0);
-    if (k == 0) {
+    if (k == 0)
       return ImmutableList.of();
-    }
     Queue<E> heap = new BoundedPriorityQueue<E>(comparator, k);
-    int nSkipped = 0;
     while (iterator.hasNext()) {
-      if (!heap.offer(iterator.next())) {
-        nSkipped++;
-      }
+      heap.offer(iterator.next());
     }
     @SuppressWarnings("unchecked")
     E[] topK = (E[]) new Object[heap.size()];
