@@ -91,27 +91,6 @@ public final class Select {
     }, k);
   }
 
-  private static final class BoundedDeque<E> extends ForwardingQueue<E> {
-    private final int capacity;
-    private final Queue<E> backing;
-
-    private BoundedDeque(int capacity) {
-      this.capacity = capacity;
-      backing = new ArrayDeque<E>(capacity);
-    }
-
-    @Override protected Queue<E> delegate() {
-      return backing;
-    }
-
-    @Override public boolean offer(E o) {
-      if (size() == capacity) {
-        poll();
-      }
-      return super.offer(o);
-    }
-  }
-
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     /*
@@ -122,17 +101,30 @@ public final class Select {
     checkArgument(k >= 0);
     if (k == 0)
       return ImmutableList.of();
-    PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
-    SoftHeap<E> heap = new SoftHeap<E>(comparator);
-    while (iter.hasNext() && heap.size() < 2 * k) {
-      heap.add(iter.next());
+    else if (k == 1) {
+      if (!iterator.hasNext()) {
+        return ImmutableList.of();
+      }
+      E max = iterator.next();
+      Ordering<? super E> ordering = Ordering.from(comparator);
+      while (iterator.hasNext()) {
+        max = ordering.max(max, iterator.next());
+      }
+      return Collections.singletonList(max);
     }
+    SoftHeap<E> heap = new SoftHeap<E>(comparator);
+    while (iterator.hasNext() && heap.size() < 2 * k) {
+      heap.add(iterator.next());
+    }
+    
+    PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
 
     if (iter.hasNext()) {
-      BoundedDeque<E> run = new BoundedDeque<E>(k);
+      Object[] run = new Object[k];
 
       runLoop : while (iter.hasNext()) {
-        int count = 0;
+        int writeIndex = 0;
+        int runLength = 0;
         while (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
           iter.next();
           if (!iter.hasNext()) {
@@ -140,24 +132,24 @@ public final class Select {
           }
         }
         E current = iter.next();
-        run.offer(current);
-        count++;
+        run[writeIndex++] = current;
+        runLength++;
 
         while (iter.hasNext()) {
           if (comparator.compare(current, iter.peek()) > 0) {
-            if (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
-              iter.next();
-              continue;
-            } else {
-              break;
-            }
+            break;
           }
-          run.offer(current = iter.next());
-          count++;
+          run[writeIndex++] = current = iter.next();
+          if (writeIndex == k) {
+            writeIndex = 0;
+          }
+          runLength++;
         }
-        while (!run.isEmpty()) {
-          heap.add(run.poll());
+        runLength = Math.min(k, runLength);
+        for (int i = 0; i < runLength; i++) {
           heap.extractMin();
+          heap.add((E) run[i]);
+          run[i] = null;
         }
       }
     }

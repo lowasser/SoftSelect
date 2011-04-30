@@ -97,6 +97,7 @@ public class Benchmark {
     }
     Random random = new Random(234723);
     int n = words.size();
+    Collections.sort(words);
     Collections.shuffle(words, random);
     mostlySort(words, Ordering.natural());
     List<? extends Comparable> list = Collections.unmodifiableList(words);
