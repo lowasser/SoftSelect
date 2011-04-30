@@ -276,7 +276,7 @@ public final class SoftHeap<E> {
   SoftHeap(Comparator<? super E> comparator) {
     this.comparator = checkNotNull(comparator);
   }
-  
+
   public boolean add(E elem) {
     if (isEmpty()) {
       first = new Tree(elem);
@@ -291,21 +291,19 @@ public final class SoftHeap<E> {
       do {
         t2 = t1.next;
         if (t1.rank() == t2.rank()) {
-          if (!t2.hasNext() || t1.rank() != t2.next.rank()) {
-            E t2Root = t2.root.ckey;
-            t1.root = new Node(t1.root, t2.root);
-            if (t1.root.ckey == t2Root) {
-              t1.suffixMin = t2.suffixMin;
-            } else {
-              lastChanged = t1;
-            }
-            t1.next = t2.next;
-            t2.root = null;
-            if (t2.hasNext()) {
-              t2.next.prev = t1;
-            } else {
-              break;
-            }
+          E t2Root = t2.root.ckey;
+          t1.root = new Node(t1.root, t2.root);
+          if (t1.root.ckey == t2Root) {
+            t1.suffixMin = t2.suffixMin;
+          } else {
+            lastChanged = t1;
+          }
+          t1.next = t2.next;
+          t2.root = null;
+          if (t2.hasNext()) {
+            t2.next.prev = t1;
+          } else {
+            break;
           }
         } else if (t1.rank() > 0) {
           break;

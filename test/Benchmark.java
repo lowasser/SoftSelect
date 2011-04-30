@@ -63,6 +63,7 @@ public class Benchmark {
     for (int i = 0; i < n; i++) {
       elems[i] = random.nextInt();
     }
+    Arrays.sort(elems);
     List<? extends Comparable> list = Arrays.asList(elems);
     // Collections.reverse(list);
     for (int k = 100; k <= 1000; k += 100) {
