@@ -99,7 +99,7 @@ public class Benchmark {
     int n = words.size();
     Collections.sort(words);
     Collections.shuffle(words, random);
-    mostlySort(words, Ordering.natural());
+    // mostlySort(words, Ordering.natural());
     List<? extends Comparable> list = Collections.unmodifiableList(words);
     // Collections.reverse(list);
     for (int k = 100; k <= 1000; k += 100) {

@@ -321,6 +321,59 @@ public final class SoftHeap<E> {
     return true;
   }
 
+  public boolean addAll(Iterable<? extends E> elements) {
+    return addAll(elements.iterator());
+  }
+
+  public boolean addAll(Iterator<? extends E> iterator) {
+    if (isEmpty()) {
+      if (!iterator.hasNext()) {
+        return false;
+      }
+      first = new Tree(iterator.next());
+      rank = 0;
+      size = 1;
+    }
+    Tree lastFinalChanged = first;
+    checkNotNull(lastFinalChanged.root);
+    while (iterator.hasNext()) {
+      Tree t2 = first;
+      Tree t1 = first = new Tree(iterator.next());
+      t1.next = t2;
+      t2.prev = t1;
+      Tree lastChanged = t1;
+      do {
+        t2 = t1.next;
+        if (t1.rank() == t2.rank()) {
+          E t2Root = t2.root.ckey;
+          t1.root = new Node(t1.root, t2.root);
+          if (t1.root.ckey == t2Root) {
+            t1.suffixMin = t2.suffixMin;
+          } else {
+            lastChanged = t1;
+          }
+          t1.next = t2.next;
+          t2.root = null;
+          if (t2.hasNext()) {
+            t2.next.prev = t1;
+          } else {
+            break;
+          }
+        } else if (t1.rank() > 0) {
+          break;
+        }
+        t1 = t1.next;
+      } while (t1.hasNext());
+      if (lastFinalChanged.root == null
+          || lastChanged.rank() > lastFinalChanged.rank()) {
+        lastFinalChanged = lastChanged;
+      }
+      size++;
+    }
+    updateSuffixMin(lastFinalChanged);
+    return true;
+  }
+
   public E peekMin() {
     if (isEmpty()) {
       throw new NoSuchElementException();

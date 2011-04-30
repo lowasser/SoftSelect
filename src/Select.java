@@ -116,7 +116,7 @@ public final class Select {
     while (iterator.hasNext() && heap.size() < 2 * k) {
       heap.add(iterator.next());
     }
-    
+
     PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
 
     if (iter.hasNext()) {
@@ -146,9 +146,9 @@ public final class Select {
           runLength++;
         }
         runLength = Math.min(k, runLength);
+        heap.addAll(Arrays.asList((E[]) run).subList(0, runLength));
         for (int i = 0; i < runLength; i++) {
           heap.extractMin();
-          heap.add((E) run[i]);
           run[i] = null;
         }
       }
