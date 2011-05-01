@@ -86,6 +86,46 @@ public final class Select {
     }, k);
   }
 
+  public static <E> List<E> greatestKSoft2(Comparator<? super E> comparator,
+      Iterator<E> iterator, int k) {
+    /*
+     * TODO: optimize for increasing input.  Possibly specialize on increasing
+     * runs a la timsort.
+     */
+    checkNotNull(comparator);
+    checkArgument(k >= 0);
+    if (k == 0)
+      return ImmutableList.of();
+    else if (k == 1) {
+      if (!iterator.hasNext()) {
+        return ImmutableList.of();
+      }
+      E max = iterator.next();
+      Ordering<? super E> ordering = Ordering.from(comparator);
+      while (iterator.hasNext()) {
+        max = ordering.max(max, iterator.next());
+      }
+      return Collections.singletonList(max);
+    }
+    SoftHeap<E> heap = new SoftHeap<E>(comparator);
+    while (iterator.hasNext() && heap.size() < 2 * k) {
+      heap.add(iterator.next());
+    }
+    PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
+    while (iter.hasNext()) {
+      if (comparator.compare(heap.peekMin(), iter.peek()) < 0) {
+        heap.extractMin();
+        heap.add(iter.next());
+      } else {
+        iter.next();
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    E[] top2K = (E[]) heap.toArray();
+    return greatestKQuick(comparator, Arrays.asList(top2K), k);
+  }
+
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     /*
@@ -114,10 +154,13 @@ public final class Select {
 
     PeekingIterator<E> iter = Iterators.peekingIterator(iterator);
 
-    if (iter.hasNext()) {
-      Object[] run = new Object[k];
+    Object[] run = new Object[k];
+    while (iter.hasNext()) {
 
-      runLoop : while (iter.hasNext()) {
+      int shortRuns = 0;
+      int longRuns = 0;
+
+      runLoop : while (iter.hasNext() && shortRuns <= longRuns * 5 + 5) {
         int writeIndex = 0;
         int runLength = 0;
         while (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
@@ -140,11 +183,24 @@ public final class Select {
           }
           runLength++;
         }
-        runLength = Math.min(k, runLength);
-        heap.addAll(Arrays.asList((E[]) run).subList(0, runLength));
+        if (runLength >= k) {
+          longRuns++;
+          runLength = k;
+        } else {
+          shortRuns++;
+        }
         for (int i = 0; i < runLength; i++) {
           heap.extractMin();
-          run[i] = null;
+          heap.add((E) run[i]);
+        }
+      }
+
+      for (int i = 0; i < 50 * k && iter.hasNext(); i++) {
+        if (comparator.compare(heap.peekMin(), iter.peek()) < 0) {
+          heap.extractMin();
+          heap.add(iter.next());
+        } else {
+          iter.next();
         }
       }
     }
