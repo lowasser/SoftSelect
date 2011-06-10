@@ -126,6 +126,10 @@ public final class Select {
     return greatestKQuick(comparator, Arrays.asList(top2K), k);
   }
 
+  private static final int BASE_SHORT_RUN_THRESHOLD = 5;
+  private static final int LONG_RUN_THRESHOLD_MULTIPLIER = 5;
+  private static final int SEQUENTIAL_MULTIPLIER = 50;
+
   public static <E> List<E> greatestKSoft(Comparator<? super E> comparator,
       Iterator<E> iterator, int k) {
     /*
@@ -160,7 +164,9 @@ public final class Select {
       int shortRuns = 0;
       int longRuns = 0;
 
-      runLoop : while (iter.hasNext() && shortRuns <= longRuns * 5 + 5) {
+      runLoop : while (iter.hasNext()
+          && shortRuns <= BASE_SHORT_RUN_THRESHOLD
+              + LONG_RUN_THRESHOLD_MULTIPLIER * longRuns) {
         int writeIndex = 0;
         int runLength = 0;
         while (comparator.compare(heap.peekMin(), iter.peek()) > 0) {
@@ -173,10 +179,7 @@ public final class Select {
         run[writeIndex++] = current;
         runLength++;
 
-        while (iter.hasNext()) {
-          if (comparator.compare(current, iter.peek()) > 0) {
-            break;
-          }
+        while (iter.hasNext() && comparator.compare(current, iter.peek()) <= 0) {
           run[writeIndex++] = current = iter.next();
           if (writeIndex == k) {
             writeIndex = 0;
@@ -195,7 +198,7 @@ public final class Select {
         }
       }
 
-      for (int i = 0; i < 50 * k && iter.hasNext(); i++) {
+      for (int i = 0; i < SEQUENTIAL_MULTIPLIER * k && iter.hasNext(); i++) {
         if (comparator.compare(heap.peekMin(), iter.peek()) < 0) {
           heap.extractMin();
           heap.add(iter.next());
